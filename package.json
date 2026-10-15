@@ -1,0 +1,38 @@
+{
+  "name": "sfera-vm-sistema",
+  "version": "1.0.0",
+  "description": "Sistema de Controle de Pedidos VM - Sfera Multifranquias",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "check": "node scripts/maintenance/check-project.js",
+    "verify:supabase": "node scripts/verification/check-supabase-verification.js",
+    "create:admin": "powershell -ExecutionPolicy Bypass -File scripts/admin/create-admin.ps1",
+    "test": "node tests/frontend/order-rules.test.js && node tests/frontend/orders-module.test.js && node tests/frontend/order-form.test.js && node tests/frontend/router.test.js && node tests/frontend/auth.test.js && node tests/frontend/stores.test.js && node tests/frontend/users.test.js && node tests/frontend/xss-escape.test.js && node tests/frontend/no-inline-events.test.js && node tests/frontend/account.test.js && node tests/frontend/inventory.test.js && node tests/frontend/dashboard.test.js && node tests/server/order-resubmit-contract.test.js && node tests/server/startup.test.js && node tests/server/users.test.js && node tests/server/orders-admin.test.js && node tests/server/inventory-admin.test.js && node tests/server/cloudflare-pages-contract.test.js && node tests/server/e2e-runtime-safety.test.js && node tests/server/supabase-verification-assets.test.js && node tests/server/security-hardening.test.js",
+    "test:smoke": "powershell -ExecutionPolicy Bypass -File scripts/smoke/smoke-test.ps1",
+    "e2e": "playwright test --workers=1",
+    "test:e2e": "playwright test --workers=1",
+    "test:e2e:headed": "playwright test --workers=1 --headed",
+    "test:e2e:ui": "playwright test --workers=1 --ui",
+    "validate:e2e": "npm run validate && npm run test:e2e",
+    "preview:pages": "wrangler pages dev public --port 8788",
+    "validate": "npm run check && npm test && npm run test:smoke"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.107.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.0.0",
+    "nodemon": "^3.1.4",
+    "supabase": "^2.107.0",
+    "typescript": "^6.0.3",
+    "wrangler": "^4.106.0"
+  }
+}

@@ -1,0 +1,11 @@
+# SPA clean URLs — Cloudflare Pages
+# Explicit routes take priority over catch-all
+/dashboard    /index.html    200
+/login        /index.html    200
+/pedidos      /index.html    200
+/novo-pedido  /index.html    200
+/lojas        /index.html    200
+/estoque      /index.html    200
+/usuarios     /index.html    200
+# ponytail: catch-all ensures deep-links like /pedidos?orderId=X serve index.html
+/*            /index.html    200

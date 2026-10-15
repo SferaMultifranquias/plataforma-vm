@@ -1,0 +1,383 @@
+<section id="users-page" class="users-page animate-in space-y-5">
+  <header class="users-toolbar">
+    <div>
+      <h1 class="users-page-title">Usuários</h1>
+      <p class="users-page-subtitle">Gerencie acessos, perfis, permissões e lojas.</p>
+    </div>
+    <div class="users-toolbar-actions">
+      <button type="button" id="users-create-open" class="users-create-btn">
+        <i data-lucide="user-plus" class="w-4 h-4"></i>
+        <span>Novo Usuário</span>
+      </button>
+      <button type="button" id="users-import-open" class="users-import-btn">
+        <i data-lucide="upload" class="w-4 h-4"></i>
+        <span>Importar</span>
+      </button>
+      <button type="button" id="users-export-btn" class="users-export-btn">
+        <i data-lucide="download" class="w-4 h-4"></i>
+        <span>Exportar</span>
+      </button>
+      <button type="button" id="users-refresh" class="users-refresh-btn">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        <span>Atualizar</span>
+      </button>
+    </div>
+  </header>
+
+  <section id="users-summary" class="users-summary-grid" aria-label="Resumo de usuários"></section>
+
+  <section class="users-toolbar-card">
+    <div class="users-filters">
+      <div class="users-filter users-filter--search">
+        <label for="users-search">Buscar usuário</label>
+        <div class="users-search-wrapper">
+          <i data-lucide="search" class="w-4 h-4"></i>
+          <input id="users-search" type="text" class="form-input" placeholder="Nome ou e-mail" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="users-filter">
+        <label for="users-role">Perfil</label>
+        <select id="users-role" class="form-select">
+          <option value="">Todos os perfis</option>
+          <option value="admin">Administrador</option>
+          <option value="loja">Loja</option>
+        </select>
+      </div>
+
+      <div class="users-filter">
+        <label for="users-status">Status</label>
+        <select id="users-status" class="form-select">
+          <option value="">Todos os status</option>
+          <option value="active">Ativo</option>
+          <option value="blocked">Bloqueado</option>
+          <option value="removed">Removido</option>
+          <option value="invited">Convite pendente</option>
+        </select>
+      </div>
+
+      <div class="users-filter">
+        <label for="users-store">Loja</label>
+        <select id="users-store" class="form-select">
+          <option value="">Todas as lojas</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <section class="users-table-card">
+    <div class="users-table-header">
+      <div id="users-count" class="users-table-count">Carregando usuários...</div>
+      <div class="users-pagination">
+        <button type="button" id="users-prev" class="users-pagination-btn">Anterior</button>
+        <span id="users-page-info" class="users-pagination-info">Página 1 de 1</span>
+        <button type="button" id="users-next" class="users-pagination-btn">Próxima</button>
+      </div>
+    </div>
+
+    <div id="users-loading" class="users-state users-state--loading hidden">
+      <span>Carregando usuários...</span>
+    </div>
+
+    <div id="users-error" class="users-state users-state--error hidden" role="alert">
+      <div>
+        <div class="users-state-title">Não foi possível carregar os usuários.</div>
+        <div id="users-error-message" class="users-state-message">Verifique a conexão e tente novamente.</div>
+      </div>
+      <button type="button" id="users-error-retry" class="users-state-action">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        <span>Tentar novamente</span>
+      </button>
+    </div>
+
+    <div id="users-empty" class="users-state users-state--empty hidden">
+      <div class="users-state-title">Nenhum usuário encontrado.</div>
+      <div class="users-state-message">Ajuste os filtros ou volte mais tarde.</div>
+    </div>
+
+    <div class="users-table-wrap">
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th class="table-th">Usuário</th>
+            <th class="table-th">E-mail</th>
+            <th class="table-th">Perfil</th>
+            <th class="table-th">Lojas vinculadas</th>
+            <th class="table-th">Status</th>
+            <th class="table-th">Último acesso</th>
+            <th class="table-th">Criado em</th>
+            <th class="table-th">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="users-table-body">
+          <tr>
+            <td colspan="8" class="table-td text-center text-slate-400 py-8">Carregando...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div id="users-create-modal" class="users-modal hidden" aria-hidden="true">
+    <div class="users-modal-backdrop" data-close-create-modal="true"></div>
+    <div class="users-modal-panel" role="dialog" aria-modal="true" aria-labelledby="users-create-title" aria-describedby="users-create-subtitle">
+      <div class="users-modal-header">
+        <div class="users-modal-header-text">
+          <h2 id="users-create-title" class="users-modal-title">Novo Usuário</h2>
+          <p id="users-create-subtitle" class="users-modal-subtitle">O usuário receberá uma senha temporária para acessar a plataforma.</p>
+        </div>
+        <button type="button" class="users-modal-close" data-close-create-modal="true" aria-label="Fechar">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="users-create-form" class="users-create-form">
+        <div class="users-modal-body">
+          <div id="users-create-error" class="users-create-error hidden" role="alert"></div>
+          <div id="users-create-success" class="users-create-success hidden" role="status" aria-hidden="true">
+            <div class="users-create-success-title">Usuário criado sem convite por e-mail.</div>
+            <div class="users-create-success-text">Compartilhe os dados abaixo com o novo usuário e peça para alterar a senha no primeiro acesso.</div>
+            <div class="users-create-success-grid">
+              <div class="users-create-success-item">
+                <span class="users-create-success-label">E-mail</span>
+                <strong id="users-create-success-email" class="users-create-success-value">-</strong>
+              </div>
+              <div class="users-create-success-item">
+                <span class="users-create-success-label">Senha temporária</span>
+                <div class="users-create-success-password-row">
+                  <strong id="users-create-success-password" class="users-create-success-value">-</strong>
+                  <button type="button" id="users-create-copy-password" class="users-create-copy-password">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
+                    <span>Copiar</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <fieldset class="users-section users-section--account">
+            <legend class="users-section-heading">
+              <span class="users-section-icon" aria-hidden="true"><i data-lucide="user" class="w-4 h-4"></i></span>
+              <span class="users-section-title-text">Dados da conta</span>
+            </legend>
+
+            <div class="users-field users-field--full">
+              <label class="form-label" for="users-create-name">
+                Nome completo <span class="required-indicator">*</span>
+              </label>
+              <input id="users-create-name" type="text" class="form-input" maxlength="120" autocomplete="name" placeholder="Nome do usuário">
+              <div id="users-create-name-error" class="users-field-error" aria-live="polite"></div>
+            </div>
+
+            <div class="users-field users-field--full">
+              <label class="form-label" for="users-create-email">
+                E-mail <span class="required-indicator">*</span>
+              </label>
+              <input id="users-create-email" type="email" class="form-input" autocomplete="email" placeholder="usuario@empresa.com">
+              <div id="users-create-email-error" class="users-field-error" aria-live="polite"></div>
+            </div>
+
+            <div class="users-field users-field--full">
+              <label class="form-label" for="users-create-password">
+                <span id="users-create-password-label">Senha temporária</span>
+              </label>
+              <div class="users-password-wrapper">
+                <input id="users-create-password" type="password" class="form-input" autocomplete="new-password" placeholder="Senha temporária">
+                <button type="button" id="users-create-toggle-password" class="users-password-toggle" aria-label="Mostrar senha">
+                  <i data-lucide="eye" class="w-4 h-4"></i>
+                </button>
+              </div>
+              <div id="users-create-password-note" class="users-field-note">Você pode editar a senha antes de salvar.</div>
+              <div id="users-create-password-error" class="users-field-error" aria-live="polite"></div>
+            </div>
+          </fieldset>
+
+          <fieldset class="users-section users-section--access">
+            <legend class="users-section-heading">
+              <span class="users-section-icon" aria-hidden="true"><i data-lucide="lock" class="w-4 h-4"></i></span>
+              <span class="users-section-title-text">Configuração de acesso</span>
+            </legend>
+
+            <div class="users-section-grid users-section-grid--access">
+              <div class="users-field users-field--split users-field--role">
+                <label class="form-label" for="users-create-role">
+                  Perfil <span class="required-indicator">*</span>
+                </label>
+                <select id="users-create-role" class="form-select">
+                  <option value="USER">Loja</option>
+                  <option value="ADMIN">Administrador</option>
+                </select>
+                <div id="users-create-role-error" class="users-field-error" aria-live="polite"></div>
+              </div>
+
+              <div class="users-field users-field--split users-field--active">
+                <label class="form-label" for="users-create-active">Usuário ativo</label>
+                <label class="users-toggle">
+                  <input id="users-create-active" type="checkbox" checked>
+                  <span>Ativo após a criação</span>
+                </label>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="users-section users-section--stores">
+            <legend class="users-section-heading users-section-heading--stores">
+              <span class="users-section-heading-left">
+                <span class="users-section-icon" aria-hidden="true"><i data-lucide="store" class="w-4 h-4"></i></span>
+                <span class="users-section-title-text">Lojas permitidas</span>
+              </span>
+              <span id="users-create-store-count" class="users-create-count">0 selecionada(s)</span>
+            </legend>
+
+            <button type="button" id="users-create-store-trigger" class="users-create-store-trigger" aria-expanded="false" aria-controls="users-create-store-dropdown">
+              <span class="users-create-store-trigger-left">
+                <i data-lucide="store" class="w-4 h-4"></i>
+                <span id="users-create-store-trigger-label" class="users-create-store-trigger-label">Selecionar lojas</span>
+              </span>
+              <i data-lucide="chevron-down" class="users-create-store-trigger-chevron w-4 h-4"></i>
+            </button>
+
+            <div id="users-create-store-dropdown" class="users-create-store-dropdown hidden" aria-hidden="true">
+              <div class="users-store-search-wrapper">
+                <i data-lucide="search" class="w-4 h-4"></i>
+                <input id="users-create-store-search" type="search" class="form-input" placeholder="Buscar loja">
+              </div>
+              <div id="users-create-store-list" class="users-create-store-list" role="group" aria-label="Lojas permitidas"></div>
+              <div id="users-create-stores-error" class="users-field-error" aria-live="polite"></div>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="users-modal-footer">
+          <button type="button" id="users-create-cancel" class="users-create-secondary">Cancelar</button>
+          <button type="submit" id="users-create-submit" class="users-create-primary">
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            <span id="users-create-submit-label">Criar usuário</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="users-export-menu" class="users-export-menu hidden" aria-hidden="true">
+    <button type="button" id="users-export-filtered" class="users-export-menu-item">
+      <i data-lucide="download" class="w-4 h-4"></i>
+      <span>Exportar filtrados (CSV)</span>
+    </button>
+    <button type="button" id="users-export-all" class="users-export-menu-item">
+      <i data-lucide="download" class="w-4 h-4"></i>
+      <span>Exportar todos (CSV)</span>
+    </button>
+  </div>
+
+  <div id="users-import-modal" class="users-modal hidden" aria-hidden="true">
+    <div class="users-modal-backdrop" data-close-import-modal="true"></div>
+    <div class="users-modal-panel users-import-panel" role="dialog" aria-modal="true" aria-labelledby="users-import-title">
+      <div class="users-modal-header">
+        <div class="users-modal-header-text">
+          <h2 id="users-import-title" class="users-modal-title">Importar usuários</h2>
+          <p id="users-import-subtitle" class="users-modal-subtitle">Faça upload de um arquivo XLSX ou CSV com os dados dos usuários.</p>
+        </div>
+        <button type="button" class="users-modal-close" data-close-import-modal="true" aria-label="Fechar">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="users-modal-body">
+        <div id="users-import-error" class="users-create-error hidden" role="alert"></div>
+
+        <div id="users-import-step-file" class="users-import-step">
+          <div class="users-import-info">
+            <i data-lucide="info" class="w-4 h-4"></i>
+            <span>Máximo de 200 linhas por arquivo. Tamanho máximo: 2 MB.</span>
+          </div>
+
+          <div class="users-import-dropzone" id="users-import-dropzone">
+            <i data-lucide="upload" class="w-8 h-8"></i>
+            <p class="users-import-dropzone-text">Arraste o arquivo aqui ou clique para selecionar</p>
+            <p class="users-import-dropzone-hint">Formatos aceitos: .xlsx, .csv</p>
+            <input type="file" id="users-import-file" accept=".xlsx,.csv" class="users-import-file-input">
+          </div>
+
+          <button type="button" id="users-import-template" class="users-import-template-btn">
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+            <span>Baixar modelo de planilha</span>
+          </button>
+
+          <details class="users-import-details">
+            <summary class="users-import-details-summary">Colunas esperadas</summary>
+            <div class="users-import-details-content">
+              <table class="users-import-columns-table">
+                <thead>
+                  <tr><th>Coluna</th><th>Descrição</th><th>Obrigatório</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>nome</td><td>Nome completo</td><td>Sim</td></tr>
+                  <tr><td>email</td><td>E-mail do usuário</td><td>Sim</td></tr>
+                  <tr><td>perfil</td><td>ADMIN ou Loja</td><td>Sim</td></tr>
+                  <tr><td>status</td><td>ativo ou bloqueado</td><td>Não (padrão: ativo)</td></tr>
+                  <tr><td>lojas</td><td>IDs separados por ponto e vírgula</td><td>Sim (para perfil Loja)</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+
+        <div id="users-import-step-preview" class="users-import-step hidden">
+          <div class="users-import-summary">
+            <span id="users-import-count-valid" class="users-import-summary-valid">0 válidos</span>
+            <span id="users-import-count-invalid" class="users-import-summary-invalid">0 inválidos</span>
+          </div>
+
+          <div class="users-import-table-wrap">
+            <table class="users-import-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Perfil</th>
+                  <th>Lojas</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="users-import-preview-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="users-import-step-result" class="users-import-step hidden">
+          <div class="users-import-result-summary">
+            <span id="users-import-result-created" class="users-import-result-created">0 criados</span>
+            <span id="users-import-result-failed" class="users-import-result-failed">0 falhas</span>
+            <span id="users-import-result-skipped" class="users-import-result-skipped">0 ignorados</span>
+          </div>
+
+          <div class="users-import-table-wrap">
+            <table class="users-import-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Status</th>
+                  <th>Detalhes</th>
+                </tr>
+              </thead>
+              <tbody id="users-import-result-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="users-modal-footer">
+        <button type="button" id="users-import-cancel" class="users-create-secondary">Cancelar</button>
+        <button type="button" id="users-import-back" class="users-create-secondary hidden">Voltar</button>
+        <button type="button" id="users-import-confirm" class="users-create-primary hidden">
+          <i data-lucide="upload" class="w-4 h-4"></i>
+          <span>Importar usuários</span>
+        </button>
+        <button type="button" id="users-import-close" class="users-create-primary hidden">Fechar</button>
+      </div>
+    </div>
+  </div>
+</section>

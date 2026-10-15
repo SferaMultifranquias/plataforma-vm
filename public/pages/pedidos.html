@@ -1,0 +1,146 @@
+<section id="orders-page-shell" class="orders-page animate-in">
+  <div class="orders-toolbar">
+    <div class="orders-toolbar-actions">
+      <button type="button" id="orders-refresh-btn" class="btn-secondary orders-action-button">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        Atualizar
+      </button>
+      <button type="button" id="orders-search-focus" class="btn-primary orders-action-button">
+        <i data-lucide="search" class="w-4 h-4"></i>
+        Buscar
+      </button>
+    </div>
+  </div>
+
+  <div class="orders-filter-card">
+    <div class="orders-filter-grid">
+      <div class="orders-filter-field">
+        <label class="form-label" for="orders-store-filter">Loja</label>
+        <select id="orders-store-filter" class="form-select">
+          <option value="">Todas as lojas</option>
+        </select>
+      </div>
+      <div class="orders-filter-field">
+        <label class="form-label" for="orders-status-filter">Status</label>
+        <select id="orders-status-filter" class="form-select">
+          <option value="">Todos</option>
+          <option value="DRAFT">Rascunho</option>
+          <option value="PENDING_APPROVAL">Aguardando aprovação</option>
+          <option value="APPROVED">Aprovado</option>
+          <option value="CHANGES_REQUESTED">Alterações solicitadas</option>
+          <option value="REJECTED">Rejeitado</option>
+          <option value="CANCELLED">Cancelado</option>
+        </select>
+      </div>
+      <div class="orders-filter-field">
+        <label class="form-label" for="orders-search">Buscar pedido</label>
+        <div class="orders-search-field">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
+          <input id="orders-search" class="form-input" type="search" placeholder="Número, solicitante, loja ou marca">
+        </div>
+      </div>
+      <div id="orders-requester-filter-wrap" class="orders-filter-field hidden">
+        <label class="form-label" for="orders-requester-filter">Solicitante</label>
+        <select id="orders-requester-filter" class="form-select">
+          <option value="">Todos os solicitantes</option>
+        </select>
+      </div>
+    </div>
+    <p class="orders-helper orders-filter-note">Busca limitada ao resultado carregado na página atual.</p>
+  </div>
+
+  <div class="orders-summary-grid">
+    <article class="orders-summary-card">
+      <div class="orders-summary-card-header">
+        <div class="orders-summary-icon orders-summary-icon--pending">
+          <i data-lucide="clock-3" class="w-4 h-4"></i>
+        </div>
+        <div class="orders-summary-title">Aguardando aprovação</div>
+      </div>
+      <div id="orders-summary-pending" class="orders-summary-value">0</div>
+    </article>
+    <article class="orders-summary-card">
+      <div class="orders-summary-card-header">
+        <div class="orders-summary-icon orders-summary-icon--approved">
+          <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+        </div>
+        <div class="orders-summary-title">Aprovados</div>
+      </div>
+      <div id="orders-summary-approved" class="orders-summary-value">0</div>
+    </article>
+    <article class="orders-summary-card">
+      <div class="orders-summary-card-header">
+        <div class="orders-summary-icon orders-summary-icon--changes">
+          <i data-lucide="message-square-warning" class="w-4 h-4"></i>
+        </div>
+        <div class="orders-summary-title">Alterações solicitadas</div>
+      </div>
+      <div id="orders-summary-changes" class="orders-summary-value">0</div>
+    </article>
+    <article class="orders-summary-card">
+      <div class="orders-summary-card-header">
+        <div class="orders-summary-icon orders-summary-icon--rejected">
+          <i data-lucide="ban" class="w-4 h-4"></i>
+        </div>
+        <div class="orders-summary-title">Rejeitados</div>
+      </div>
+      <div id="orders-summary-rejected" class="orders-summary-value">0</div>
+    </article>
+  </div>
+
+  <div id="orders-loading" class="hidden bg-white border border-slate-200 rounded-2xl shadow-sm p-6 text-sm text-slate-500">
+    Carregando pedidos...
+  </div>
+
+  <div id="orders-error" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 shadow-sm">
+    <div class="font-semibold">Erro ao carregar pedidos</div>
+    <p id="orders-error-message" class="text-sm mt-1"></p>
+    <button type="button" id="orders-retry-btn" class="btn-secondary mt-4 orders-action-button">
+      <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+      Tentar novamente
+    </button>
+  </div>
+
+  <div id="orders-empty" class="hidden bg-white border border-slate-200 rounded-2xl shadow-sm p-6 text-sm text-slate-500">
+    <div id="orders-empty-message"></div>
+  </div>
+
+  <div id="orders-results">
+    <section class="orders-table-card hidden md:block">
+      <div class="orders-table-scroll">
+        <table class="orders-table">
+          <thead class="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th class="table-th">Pedido</th>
+              <th class="table-th">Data</th>
+              <th class="table-th">Solicitante</th>
+              <th class="table-th">Loja</th>
+              <th class="table-th">Prioridade</th>
+              <th class="table-th">Status</th>
+              <th class="table-th">Atualizado em</th>
+              <th class="table-th">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="orders-table-body"></tbody>
+        </table>
+      </div>
+
+      <div class="orders-table-footer">
+        <div id="orders-pagination-label" class="orders-count"></div>
+        <div class="orders-pagination-controls">
+          <button type="button" id="orders-prev-page" class="btn-secondary orders-action-button">
+            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            Anterior
+          </button>
+          <span id="orders-page-indicator" class="text-sm text-slate-500 min-w-[112px] text-center">Página 1 de 1</span>
+          <button type="button" id="orders-next-page" class="btn-secondary orders-action-button">
+            Próxima
+            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <div id="orders-mobile-list" class="orders-mobile-list space-y-3 md:hidden"></div>
+  </div>
+</section>

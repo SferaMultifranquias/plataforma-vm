@@ -1,0 +1,212 @@
+.order-form-card {
+  background: #fff;
+}
+
+.order-form-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.order-form-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.order-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.order-form-select {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0 42px 0 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.order-form-select:hover {
+  border-color: #94a3b8;
+}
+
+.order-form-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.order-form-select:disabled {
+  background-color: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.order-item-card {
+  padding: 18px 20px;
+  border: 1px solid #d8e0ec;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.order-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.order-item-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 28px;
+  width: 100%;
+  margin-top: 16px;
+  align-items: start;
+}
+
+.order-item-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+
+.order-item-field .form-label {
+  margin-bottom: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.order-item-field .item-field,
+.order-item-field .item-field-area {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #111827;
+  font: inherit;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.order-item-field .item-field {
+  min-height: 42px;
+}
+
+.order-item-field .item-field-area {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.order-item-field .item-field::placeholder,
+.order-item-field .item-field-area::placeholder {
+  color: #94a3b8;
+}
+
+.order-item-field .item-field:focus,
+.order-item-field .item-field-area:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  outline: none;
+}
+
+.order-form-section .form-select.order-form-select {
+  background-image: linear-gradient(45deg, transparent 50%, #64748b 50%), linear-gradient(135deg, #64748b 50%, transparent 50%);
+  background-position: calc(100% - 20px) calc(50% - 2px), calc(100% - 14px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.order-form-section .form-select.order-form-select:disabled {
+  background-image: linear-gradient(45deg, transparent 50%, #cbd5e1 50%), linear-gradient(135deg, #cbd5e1 50%, transparent 50%);
+}
+
+.order-upload-area {
+  min-height: 220px;
+}
+
+.order-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.order-form-actions .order-form-action {
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  border-radius: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.order-form-actions .order-form-action:hover {
+  transform: translateY(-1px);
+}
+
+.order-form-actions .order-form-action--secondary {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.order-form-actions .order-form-action--secondary:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.order-form-actions .order-form-action--primary {
+  border: 1px solid #2563eb;
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+}
+
+.order-form-actions .order-form-action--primary:hover {
+  border-color: #1d4ed8;
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28);
+}
+
+.field-error {
+  min-height: 1rem;
+}
+
+@media (max-width: 768px) {
+  .order-item-grid {
+    grid-template-columns: 1fr;
+  }
+}

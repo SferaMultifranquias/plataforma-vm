@@ -1,0 +1,218 @@
+<div class="animate-in space-y-5">
+  <section class="stock-toolbar-card">
+    <div class="stock-filters">
+      <div class="stock-search-wrapper">
+        <i data-lucide="search" class="stock-search-icon w-4 h-4" aria-hidden="true"></i>
+        <input id="sc-busca" type="search" placeholder="Buscar por produto ou SKU..." class="form-input stock-search-input" aria-label="Buscar">
+      </div>
+      <select id="sc-filtro-loja" class="form-select stock-filter-control" aria-label="Filtrar por loja">
+        <option value="">Todas as lojas</option>
+      </select>
+    </div>
+    <div class="stock-toolbar-actions">
+      <p class="stock-toolbar-note">Itens recebidos e registrados</p>
+      <div class="stock-export-wrapper">
+        <button type="button" id="sc-export-btn" class="stock-export-btn" aria-haspopup="true" aria-expanded="false">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>Exportar</span>
+        </button>
+        <div id="sc-export-menu" class="stock-export-menu hidden" aria-hidden="true">
+          <button type="button" id="sc-export-csv" class="stock-export-menu-item">
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+            <span>CSV</span>
+          </button>
+          <button type="button" id="sc-export-xlsx" class="stock-export-menu-item">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <span>XLSX</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sc-checks-section" class="hidden">
+    <section class="stock-table-card sc-checks-card">
+      <div class="stock-table-scroll">
+        <table class="stock-table">
+          <colgroup>
+            <col class="stock-col-loja">
+            <col class="stock-col-sku">
+            <col class="stock-col-desc">
+            <col class="stock-col-qty">
+            <col class="stock-col-status">
+            <col class="stock-col-avail">
+            <col class="stock-col-date">
+            <col class="stock-col-action" id="sc-checks-action-col" style="width:10%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="text-center">Loja</th>
+              <th class="text-center">Produto / SKU</th>
+              <th class="text-center">Descrição</th>
+              <th class="text-center">Qtd. solicitada</th>
+              <th class="text-center">Status</th>
+              <th class="text-center">Disponível</th>
+              <th class="text-center">Verificado em</th>
+              <th class="text-center" id="sc-checks-action-th">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="sc-checks-tbody"></tbody>
+        </table>
+      </div>
+      <div class="stock-table-footer">
+        <span id="sc-checks-counter">0 item(ns) solicitado(s)</span>
+      </div>
+    </section>
+  </section>
+
+  <section id="sc-loading" class="stock-state">
+    <div class="stock-spinner"></div>
+    <span>Carregando itens recebidos...</span>
+  </section>
+  <section id="sc-error" class="stock-state hidden">
+    <i data-lucide="alert-circle" class="w-8 h-8 text-red-400"></i>
+    <span id="sc-error-msg" class="text-sm text-red-600"></span>
+    <button id="sc-retry-btn" type="button" class="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Tentar novamente</button>
+  </section>
+  <section id="sc-empty" class="stock-state hidden">
+    <i data-lucide="package" class="w-8 h-8 text-slate-300"></i>
+    <span class="text-sm">Nenhum item recebido encontrado.</span>
+  </section>
+
+  <section id="sc-received-section" class="hidden">
+    <section class="stock-table-card">
+      <div class="stock-table-scroll">
+        <table class="stock-table" id="sc-received-table">
+          <colgroup>
+            <col class="stock-col-loja">
+            <col class="stock-col-sku">
+            <col class="stock-col-desc">
+            <col class="stock-col-qty">
+            <col class="stock-col-unit">
+            <col class="stock-col-invoice" style="width:10%">
+            <col class="stock-col-value" style="width:10%">
+            <col class="stock-col-value" style="width:10%">
+            <col class="stock-col-date">
+            <col class="stock-col-action" style="width:10%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="text-center">Loja</th>
+              <th class="text-center">Produto / SKU</th>
+              <th class="text-center">Descrição</th>
+              <th class="text-center">Qtd. recebida</th>
+              <th class="text-center">Unidade</th>
+              <th class="text-center">NF</th>
+              <th class="text-center">Valor unit.</th>
+              <th class="text-center">Valor total</th>
+              <th class="text-center">Recebido em</th>
+              <th class="text-center" id="sc-received-action-th">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="sc-received-tbody"></tbody>
+        </table>
+      </div>
+      <div class="stock-table-footer">
+        <span id="sc-received-counter">0 item(ns) recebido(s)</span>
+      </div>
+    </section>
+  </section>
+
+  <!-- Check edit modal (existing) -->
+  <div id="sc-edit-modal" class="users-modal hidden" aria-hidden="true">
+    <div class="users-modal-backdrop"></div>
+    <div class="users-modal-panel sc-edit-panel" role="dialog" aria-modal="true" aria-labelledby="sc-edit-modal-title">
+      <div class="users-modal-header">
+        <h2 id="sc-edit-modal-title" class="users-modal-title text-base font-semibold">Editar Verificação</h2>
+        <button type="button" class="users-modal-close" id="sc-edit-modal-close" aria-label="Fechar">&times;</button>
+      </div>
+      <form id="sc-edit-form" class="users-modal-body" novalidate>
+        <div class="users-field">
+          <label class="users-label" for="sc-edit-status">Status do estoque</label>
+          <select id="sc-edit-status" class="form-select" required>
+            <option value="pending_check">Pendente</option>
+            <option value="in_stock">Em estoque</option>
+            <option value="partial_stock">Parcial</option>
+            <option value="out_of_stock">Sem estoque</option>
+            <option value="needs_purchase">Necessita compra</option>
+          </select>
+        </div>
+        <div class="users-field">
+          <label class="users-label" for="sc-edit-qty">Quantidade disponível</label>
+          <input id="sc-edit-qty" type="number" min="0" step="0.01" class="form-input" placeholder="Deixe em branco se não aplicável">
+        </div>
+        <div class="users-field">
+          <label class="users-label" for="sc-edit-notes">Observações</label>
+          <textarea id="sc-edit-notes" class="form-input" rows="3" maxlength="500" placeholder="Observações opcionais (máx. 500 caracteres)"></textarea>
+          <span class="text-xs text-slate-400 mt-1" id="sc-edit-notes-counter">0/500</span>
+        </div>
+        <input type="hidden" id="sc-edit-order-item-id" value="">
+      </form>
+      <div class="users-modal-footer">
+        <button type="button" class="users-btn users-btn--cancel" id="sc-edit-cancel">Cancelar</button>
+        <button type="button" class="users-btn users-btn--primary" id="sc-edit-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Receipt edit modal -->
+  <div id="sc-receipt-edit-modal" class="users-modal hidden" aria-hidden="true">
+    <div class="users-modal-backdrop"></div>
+    <div class="users-modal-panel sc-edit-panel" role="dialog" aria-modal="true" aria-labelledby="sc-receipt-edit-modal-title">
+      <div class="users-modal-header">
+        <h2 id="sc-receipt-edit-modal-title" class="users-modal-title text-base font-semibold">Editar Item Recebido</h2>
+        <button type="button" class="users-modal-close sr-edit-close" aria-label="Fechar">&times;</button>
+      </div>
+      <form id="sc-receipt-edit-form" class="users-modal-body" novalidate>
+        <div class="users-field">
+          <label class="users-label" for="sr-edit-sku">Produto / SKU</label>
+          <input id="sr-edit-sku" type="text" class="form-input" required maxlength="100">
+        </div>
+        <div class="users-field">
+          <label class="users-label" for="sr-edit-desc">Descrição</label>
+          <input id="sr-edit-desc" type="text" class="form-input" required maxlength="255">
+        </div>
+        <div class="users-field">
+          <label class="users-label" for="sr-edit-qty">Quantidade recebida</label>
+          <input id="sr-edit-qty" type="number" min="0.01" step="0.01" class="form-input" required>
+        </div>
+        <div class="users-field">
+          <label class="users-label" for="sr-edit-unit">Unidade</label>
+          <input id="sr-edit-unit" type="text" class="form-input" required maxlength="20" placeholder="ex.: un, cx, kg">
+        </div>
+        <div class="users-field">
+          <label class="users-label" for="sr-edit-unit-value">Valor unitário (R$)</label>
+          <input id="sr-edit-unit-value" type="number" min="0" step="0.01" class="form-input" placeholder="Opcional">
+        </div>
+        <input type="hidden" id="sr-edit-receipt-id" value="">
+      </form>
+      <div class="users-modal-footer">
+        <button type="button" class="users-btn users-btn--cancel sr-edit-close">Cancelar</button>
+        <button type="button" class="users-btn users-btn--primary" id="sr-edit-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Void receipt confirmation modal -->
+  <div id="sc-void-modal" class="users-modal hidden" aria-hidden="true">
+    <div class="users-modal-backdrop"></div>
+    <div class="users-modal-panel sc-edit-panel" role="dialog" aria-modal="true" aria-labelledby="sc-void-modal-title">
+      <div class="users-modal-header">
+        <h2 id="sc-void-modal-title" class="users-modal-title text-base font-semibold">Anular Recebimento</h2>
+        <button type="button" class="users-modal-close" id="sc-void-modal-close" aria-label="Fechar">&times;</button>
+      </div>
+      <div class="users-modal-body">
+        <p class="text-sm text-slate-600 mb-3">Tem certeza que deseja anular este recebimento? O estoque será recalculado.</p>
+        <div class="users-field">
+          <label class="users-label" for="sc-void-reason">Motivo da anulação</label>
+          <textarea id="sc-void-reason" class="form-input" rows="3" required placeholder="Informe o motivo (obrigatório)"></textarea>
+        </div>
+        <input type="hidden" id="sc-void-receipt-id" value="">
+      </div>
+      <div class="users-modal-footer">
+        <button type="button" class="users-btn users-btn--cancel" id="sc-void-cancel">Cancelar</button>
+        <button type="button" class="users-btn users-btn--danger" id="sc-void-confirm">Confirmar Anulação</button>
+      </div>
+    </div>
+  </div>
+</div>

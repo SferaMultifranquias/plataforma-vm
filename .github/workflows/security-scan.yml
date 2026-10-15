@@ -1,0 +1,61 @@
+name: Security Scan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 8 * * 1'  # weekly Monday
+
+permissions:
+  contents: read
+
+jobs:
+  osv-scan:
+    name: OSV Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Check dependencies (npm audit)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.3.8
+        continue-on-error: true
+        with:
+          scan-args: |-
+            --lockfile=package-lock.json
+
+  semgrep-sast:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:1.101.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep scan
+        run: semgrep --config=auto --quiet --output=semgrep-report.json --json .
+        continue-on-error: true
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep-report.json
+        if: always()
+
+  trufflehog-secrets:
+    name: TruffleHog Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan for secrets
+        uses: trufflesecurity/trufflehog@v3.82.13
+        with:
+          extra_args: --only-verified --results=verified-only
+        continue-on-error: true

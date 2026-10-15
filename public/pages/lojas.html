@@ -1,0 +1,55 @@
+<div class="animate-in space-y-5">
+  <section class="stores-toolbar-card">
+    <div class="stores-filters">
+      <div class="stores-search-wrapper">
+        <i data-lucide="search" class="stores-search-icon w-4 h-4" aria-hidden="true"></i>
+        <input id="loja-busca" type="search" placeholder="Buscar por nome, codigo..." class="form-input stores-search-input">
+      </div>
+      <select id="loja-filtro-marca" class="form-select stores-filter-control stores-filter-control--brand">
+        <option value="">Todas as marcas</option>
+        <option value="O Boticario">O Boticario</option>
+        <option value="QDB">QDB</option>
+      </select>
+      <select id="loja-filtro-ativo" class="form-select stores-filter-control stores-filter-control--status">
+        <option value="">Todos</option>
+        <option value="true">Ativas</option>
+        <option value="false">Inativas</option>
+      </select>
+    </div>
+    <button id="loja-nova" type="button" class="btn-primary stores-new-button">
+      <i data-lucide="plus" class="w-4 h-4" aria-hidden="true"></i>
+      <span>Nova Loja</span>
+    </button>
+  </section>
+
+  <section class="stores-table-card">
+    <div class="stores-table-scroll">
+      <table class="stores-table">
+        <colgroup>
+          <col class="stores-col-code">
+          <col class="stores-col-name">
+          <col class="stores-col-brand">
+          <col class="stores-col-city">
+          <col class="stores-col-status">
+          <col class="stores-col-actions">
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="text-center">Código</th>
+            <th class="text-left">Nome</th>
+            <th class="text-center">Marca</th>
+            <th class="text-center">Cidade</th>
+            <th class="text-center">Status</th>
+            <th class="text-center">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-lojas">
+          <tr><td colspan="6" class="text-center text-slate-400 py-8" style="font-size:13px">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="stores-table-footer">
+      <span id="lojas-contador">0 loja(s) encontrada(s)</span>
+    </div>
+  </section>
+</div>

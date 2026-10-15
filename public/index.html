@@ -1,0 +1,1223 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sfera VM - Sistema de Controle de Pedidos</title>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        sfera: { 50:'#f0f4ff', 100:'#dce7ff', 200:'#b9cfff', 300:'#85acff',
+          400:'#4d80ff', 500:'#1a56ff', 600:'#0033e6', 700:'#0028b8',
+          800:'#002494', 700:'#001f7a' }
+      }
+    }
+  }
+}
+</script>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://unpkg.com/lucide@1.23.0/dist/umd/lucide.min.js" integrity="sha384-ouAVEJVCMsf8Svzn+BwqbaBhxBEA0xgeVBhHnxmWd+Wqyv18yhWCQwGegFD/OHLq" crossorigin="anonymous"></script>
+<script src="/vendor/supabase/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-sha256@0.11.0/src/sha256.min.js" integrity="sha384-QjbMdgv/hWELlDRbhj6tXsKlzXhrlrSIGNqgdQVvxYQpo+vA+4jOWramMq56bPSg" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+<script src="/js/shared/app-utils.js?v=20260702-1"></script>
+<script src="/js/shared/order-rules.js?v=20260702-1"></script>
+<script src="/js/shared/confirmation-modal.js?v=20260702-1"></script>
+<script src="/js/pages/stores/stores-module.js?v=20260702-1"></script>
+<script src="/js/pages/orders/orders-module.js?v=20260702-1"></script>
+<script src="/js/pages/order-form/order-form-module.js?v=20260702-1"></script>
+<script src="/js/pages/dashboard/dashboard-module.js?v=20260702-1"></script>
+<script src="/js/core/auth.js?v=20260702-1"></script>
+<script src="/js/pages/orders/orders-data.js?v=20260702-1"></script>
+<script src="/js/pages/users/users-data.js?v=20260702-1"></script>
+<script src="/js/pages/users/users-module.js?v=20260702-1"></script>
+<script src="/js/pages/inventory/inventory-data.js?v=20260702-1"></script>
+<script src="/js/pages/inventory/inventory-module.js?v=20260702-1"></script>
+<script src="/js/pages/account/account-module.js?v=20260702-1"></script>
+<script src="/js/core/app-shell.js?v=20260702-1"></script>
+<link rel="stylesheet" href="/styles/pages/orders.css?v=20260702-1">
+<link rel="stylesheet" href="/styles/pages/order-form.css?v=20260702-1">
+<link rel="stylesheet" href="/styles/pages/users.css?v=20260702-1">
+<link rel="stylesheet" href="/styles/pages/login.css?v=20260702-1">
+<link rel="stylesheet" href="/styles/pages/stores.css?v=20260702-1">
+<link rel="stylesheet" href="/styles/pages/dashboard.css?v=20260702-1">
+<link rel="stylesheet" href="/styles/pages/inventory.css?v=20260702-1">
+<script>
+window.APP_VERSION = '20260702-1';
+</script>
+<style>
+  * { font-family: 'Inter', system-ui, sans-serif; }
+  .sidebar-link { @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer; }
+  .sidebar-link.active { @apply bg-blue-600 text-white font-medium; }
+  .wave-badge { @apply text-xs font-semibold px-2 py-0.5 rounded-full; }
+  .stat-card { @apply bg-white rounded-xl border border-slate-200 p-5 shadow-sm; }
+  .phase-card { @apply bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer; }
+  .tag { @apply text-xs font-medium px-2 py-0.5 rounded-full; }
+  .btn-primary { @apply bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm; }
+  .btn-secondary { @apply bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm; }
+  .form-label { @apply block text-sm font-medium text-slate-700 mb-1; }
+  .form-input { @apply w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500; }
+  .form-select { @apply w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white; }
+  .table-th { @apply text-left text-xs font-semibold text-slate-500 uppercase tracking-wide py-2 px-4; }
+  .table-td { @apply py-3 px-4 text-sm text-slate-700; }
+  .table-row { @apply border-b border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors; }
+  .status-badge { @apply text-xs font-medium px-2.5 py-1 rounded-full; }
+  [x-cloak] { display: none !important; }
+  #sidebar { transition: width 0.25s ease; }
+  .sidebar-text { transition: opacity 0.15s ease, visibility 0.15s ease; overflow: hidden; white-space: nowrap; }
+  .nav-item { white-space: nowrap; overflow: hidden; }
+  .animate-in { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .bar { transition: width 0.8s ease; }
+  .progress-ring { transform: rotate(-90deg); }
+  .modal-overlay { backdrop-filter: blur(2px); }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+<div id="bootstrap-screen" class="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950 text-white">
+  <div class="text-center">
+    <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+      <span class="font-bold text-sm">SF</span>
+    </div>
+    <div class="text-sm font-semibold">Carregando Sfera VM</div>
+    <div id="bootstrap-message" class="text-xs text-slate-400 mt-1">Restaurando sessao...</div>
+  </div>
+</div>
+
+<div id="app" class="hidden flex h-screen overflow-hidden">
+
+  <aside id="sidebar" class="bg-slate-900 flex flex-col shrink-0 transition-all duration-300" style="width:260px">
+    <div class="px-4 py-4 border-b border-white/10 flex items-center justify-between">
+      <div class="flex items-center gap-3 overflow-hidden">
+        <div class="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
+          <span class="text-white font-bold text-sm">SF</span>
+        </div>
+        <div class="sidebar-text transition-opacity duration-200">
+          <div class="text-white font-semibold text-sm leading-tight whitespace-nowrap">Sfera VM</div>
+          <div class="text-slate-400 text-xs whitespace-nowrap">Operacao</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="sidebar-toggle-btn" type="button" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-white/10 hover:text-white transition-colors shrink-0" title="Recolher">
+          <i id="sidebar-toggle-icon" data-lucide="panel-left-close" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto overflow-x-hidden">
+      <div class="sidebar-text px-2 mb-1">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Geral</span>
+      </div>
+      <a href="/dashboard" data-route="/dashboard" data-resource="dashboard" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="layout-dashboard" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Dashboard</span>
+      </a>
+
+      <div class="sidebar-text px-2 pt-3 pb-1">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Operação</span>
+      </div>
+      <a href="/novo-pedido" data-route="/novo-pedido" data-resource="formulario" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="clipboard-plus" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Novo Pedido</span>
+      </a>
+      <a href="/pedidos" data-route="/pedidos" data-resource="pedidos" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="list-checks" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Pedidos</span>
+      </a>
+      <a id="nav-estoque" href="/estoque" data-route="/estoque" data-resource="stock-checks-read" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="warehouse" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Estoque</span>
+      </a>
+      <div id="nav-admin" class="sidebar-text px-2 pt-3 pb-1 flex items-center gap-2">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Administração</span>
+      </div>
+      <button id="account-open-btn" type="button" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer w-full text-left">
+        <i data-lucide="user-circle" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Minha Conta</span>
+      </button>
+      <a id="nav-usuarios" href="/usuarios" data-route="/usuarios" data-resource="usuarios" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="users-round" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Usuários</span>
+      </a>
+      <a id="nav-lojas" href="/lojas" data-route="/lojas" data-resource="lojas-cadastro" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="store" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Lojas</span>
+      </a>
+    </nav>
+
+    <div class="px-3 py-3 border-t border-white/10">
+      <div class="flex items-center gap-3">
+        <div id="sidebar-avatar" class="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0">?</div>
+        <div class="sidebar-text flex-1 min-w-0">
+          <div id="sidebar-username" class="text-white text-xs font-medium truncate">-</div>
+          <div id="sidebar-userrole" class="text-slate-400 text-xs">-</div>
+        </div>
+        <button id="logout-btn" type="button" class="sidebar-text w-4 h-4 flex items-center justify-center text-slate-500 hover:text-white transition-colors shrink-0 bg-transparent border-0 p-0 cursor-pointer" title="Sair">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col overflow-hidden">
+    <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0">
+      <div>
+        <h1 id="page-title" class="text-base font-semibold text-slate-900">Dashboard</h1>
+        <p id="page-subtitle" class="text-xs text-slate-500">Visao geral do sistema VM</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="/novo-pedido" data-route="/novo-pedido" data-resource="formulario" class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95">
+          <i data-lucide="plus-circle" class="w-5 h-5"></i>
+          <span>Novo Pedido</span>
+        </a>
+      </div>
+    </header>
+
+    <div id="content" class="flex-1 overflow-y-auto p-6">
+    </div>
+  </main>
+</div>
+
+<div id="login-screen" class="hidden fixed inset-0 z-[100] bg-slate-900"></div>
+
+
+<div id="modal-loja" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay bg-black/40" aria-hidden="true">
+  <div class="stores-modal-panel animate-in" role="dialog" aria-modal="true" aria-labelledby="modal-loja-titulo" aria-describedby="modal-loja-subtitle">
+    <header class="stores-modal-header">
+      <div class="stores-modal-header-icon" aria-hidden="true"><i data-lucide="store" class="w-5 h-5"></i></div>
+      <div class="stores-modal-title-block">
+        <h3 id="modal-loja-titulo" class="stores-modal-title">Nova Loja</h3>
+        <p id="modal-loja-subtitle" class="stores-modal-subtitle">Preencha as informações abaixo para cadastrar uma nova loja.</p>
+      </div>
+      <button type="button" id="modal-loja-close-btn" class="stores-modal-close" aria-label="Fechar modal de loja"><i data-lucide="x" class="w-4 h-4" aria-hidden="true"></i></button>
+    </header>
+
+    <input type="hidden" id="fl-id">
+
+    <div class="stores-modal-body stores-form">
+      <section class="stores-form-section" aria-labelledby="stores-section-info-title">
+        <div class="stores-form-section-heading">
+          <span class="stores-form-section-icon" aria-hidden="true"><i data-lucide="tag" class="w-4 h-4"></i></span>
+          <h4 id="stores-section-info-title">Informações da Loja</h4>
+        </div>
+
+        <div class="stores-field stores-field--full">
+          <label class="form-label" for="fl-nome">Nome da Loja <span class="stores-required">*</span></label>
+          <input id="fl-nome" type="text" class="form-input" placeholder="Ex: Shopping Iguatemi" maxlength="100">
+        </div>
+      </section>
+
+      <section class="stores-form-section" aria-labelledby="stores-section-id-title">
+        <div class="stores-form-section-heading">
+          <span class="stores-form-section-icon" aria-hidden="true"><i data-lucide="barcode" class="w-4 h-4"></i></span>
+          <h4 id="stores-section-id-title">Identificação</h4>
+        </div>
+
+        <div class="stores-form-grid stores-form-grid--two">
+          <div class="stores-field">
+            <label class="form-label" for="fl-codigo">Código <span class="stores-required">*</span></label>
+            <input id="fl-codigo" type="text" class="form-input" placeholder="Ex: 0342" maxlength="10">
+          </div>
+
+          <div class="stores-field">
+            <label class="form-label" for="fl-marca">Marca <span class="stores-required">*</span></label>
+            <select id="fl-marca" class="form-select">
+              <option value="O Boticario">O Boticario</option>
+              <option value="QDB">QDB</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="stores-form-section" aria-labelledby="stores-section-location-title">
+        <div class="stores-form-section-heading">
+          <span class="stores-form-section-icon" aria-hidden="true"><i data-lucide="map-pin" class="w-4 h-4"></i></span>
+          <h4 id="stores-section-location-title">Localização</h4>
+        </div>
+
+        <div class="stores-form-grid stores-form-grid--two">
+          <div class="stores-field">
+            <label class="form-label" for="fl-cidade">Cidade</label>
+            <input id="fl-cidade" type="text" class="form-input" placeholder="São Paulo" maxlength="50">
+          </div>
+
+          <div class="stores-field">
+            <label class="form-label" for="fl-estado">Estado</label>
+            <input id="fl-estado" type="text" class="form-input" placeholder="SP" maxlength="2" style="text-transform:uppercase">
+          </div>
+        </div>
+      </section>
+
+      <section id="fl-ativo-wrapper" class="stores-form-section hidden" aria-labelledby="stores-section-status-title">
+        <div class="stores-form-section-heading">
+          <span class="stores-form-section-icon" aria-hidden="true"><i data-lucide="power" class="w-4 h-4"></i></span>
+          <h4 id="stores-section-status-title">Status</h4>
+        </div>
+
+        <div class="stores-field stores-field--full">
+          <label class="form-label" for="fl-ativo">Status da loja</label>
+          <select id="fl-ativo" class="form-select">
+            <option value="true">Ativa</option>
+            <option value="false">Inativa</option>
+          </select>
+        </div>
+      </section>
+    </div>
+
+    <footer class="stores-modal-footer">
+      <button type="button" id="modal-loja-cancel-btn" class="btn-secondary stores-modal-action">Cancelar</button>
+      <button type="button" id="modal-loja-btn-save" class="btn-primary stores-modal-action">
+        <i data-lucide="plus" class="w-4 h-4"></i> Criar loja
+      </button>
+    </footer>
+  </div>
+</div>
+
+<div id="confirm-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40 modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 animate-in">
+    <h3 id="confirm-modal-title" class="font-semibold text-slate-900 text-lg mb-2"></h3>
+    <p id="confirm-modal-desc" class="text-sm text-slate-600 mb-6"></p>
+    <div id="confirm-modal-password-block" class="hidden mb-4">
+      <label for="confirm-modal-password-input" class="block text-sm font-medium text-slate-700 mb-1">Senha</label>
+      <input id="confirm-modal-password-input" type="password" autocomplete="current-password" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Digite sua senha" />
+    </div>
+    <div class="flex gap-3 justify-end">
+      <button id="confirm-modal-cancel" type="button" class="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400">Cancelar</button>
+      <button id="confirm-modal-confirm" type="button" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div id="drawer-overlay" class="hidden fixed inset-0 z-40 bg-black/30 modal-overlay"></div>
+<div id="drawer" class="fixed top-0 right-0 h-full w-full max-w-lg bg-white shadow-2xl z-50 flex flex-col transition-transform duration-300" style="transform:translateX(100%)">
+  <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+    <div>
+      <div id="drawer-protocolo" class="text-xs font-mono text-blue-600 font-bold"></div>
+      <h2 id="drawer-titulo" class="text-base font-semibold text-slate-900"></h2>
+    </div>
+    <button id="drawer-close-btn" type="button" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+      <i data-lucide="x" class="w-5 h-5 text-slate-500"></i>
+    </button>
+  </div>
+
+  <div class="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+    <div id="drawer-status-bar" class="rounded-xl p-4 flex items-center gap-3"></div>
+
+    <div>
+      <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Resumo</h3>
+      <div class="orders-drawer-summary-grid">
+        <div class="bg-slate-50 rounded-lg p-3">
+          <div class="text-xs text-slate-400 mb-0.5">Loja</div>
+          <div id="drawer-loja" class="text-sm font-medium text-slate-900"></div>
+        </div>
+        <div class="bg-slate-50 rounded-lg p-3">
+          <div class="text-xs text-slate-400 mb-0.5">Data do Pedido</div>
+          <div id="drawer-data" class="text-sm font-medium text-slate-900"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="drawer-delivery-info" class="hidden">
+      <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Pedido realizado</h3>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-slate-50 rounded-lg p-3">
+          <div class="text-xs text-slate-400 mb-0.5">Protocolo</div>
+          <div id="drawer-delivery-protocol" class="text-sm font-medium text-slate-900"></div>
+        </div>
+        <div class="bg-slate-50 rounded-lg p-3">
+          <div class="text-xs text-slate-400 mb-0.5">Data de entrega</div>
+          <div id="drawer-delivery-date" class="text-sm font-medium text-slate-900"></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Imagens do Produto</h3>
+      <div id="drawer-imagem" class="space-y-2"></div>
+    </div>
+
+    <div>
+      <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Itens</h3>
+      <div id="drawer-itens" class="space-y-2"></div>
+    </div>
+    <div>
+      <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Movimento</h3>
+      <div id="drawer-historico" class="space-y-2 text-xs text-slate-500"></div>
+    </div>
+
+    <div id="drawer-justificativa-bloco" class="hidden">
+      <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Justificativa / orientações</h3>
+      <textarea id="drawer-justificativa" class="form-input orders-drawer-textarea text-sm" rows="3" placeholder="Descreva justificativa, ajuste ou orientações..."></textarea>
+    </div>
+  </div>
+
+  <div id="drawer-footer" class="shrink-0 px-6 py-4 border-t border-slate-200 bg-slate-50"></div>
+  <div id="drawer-delete-block" class="hidden shrink-0 px-6 py-3 border-t border-red-100 bg-red-50">
+    <button id="drawer-delete-btn" type="button" class="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-700 font-medium px-4 py-2.5 rounded-lg transition-colors text-sm border border-red-200">
+      <i data-lucide="trash-2" class="w-4 h-4"></i> Excluir Pedido
+    </button>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-sm animate-in">
+  <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+  <span id="toast-msg">Acao realizada com sucesso.</span>
+</div>
+
+<div id="account-modal" class="users-modal hidden" aria-hidden="true">
+  <div id="account-overlay" class="users-modal-backdrop"></div>
+  <div class="users-modal-panel account-panel" role="dialog" aria-modal="true" aria-labelledby="account-modal-title">
+    <div class="users-modal-header">
+      <h2 id="account-modal-title" class="users-modal-title">Minha Conta</h2>
+      <button id="account-close-btn" type="button" class="users-modal-close" aria-label="Fechar Minha Conta">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <div class="users-modal-body account-body">
+      <div class="account-section">
+        <div class="account-section-header">
+          <div class="account-section-icon"><i data-lucide="mail" class="w-4 h-4"></i></div>
+          <h3>Alterar E-mail</h3>
+        </div>
+
+        <div class="account-field">
+          <label class="form-label" for="account-current-email">E-mail atual</label>
+          <input id="account-current-email" type="email" class="form-input bg-slate-50" readonly tabindex="-1">
+        </div>
+        <div class="account-field">
+          <label class="form-label" for="account-new-email">Novo e-mail</label>
+          <input id="account-new-email" type="email" class="form-input" placeholder="seu@email.com" autocomplete="email">
+        </div>
+        <div class="account-field">
+          <label class="form-label" for="account-email-password">Senha atual</label>
+          <input id="account-email-password" type="password" class="form-input" placeholder="********" autocomplete="current-password">
+        </div>
+        <button id="account-save-email-btn" type="button" class="account-save-btn">
+          <i data-lucide="mail" class="w-4 h-4"></i>
+          Salvar e-mail
+        </button>
+      </div>
+
+      <div class="account-section-divider"></div>
+
+      <div class="account-section">
+        <div class="account-section-header">
+          <div class="account-section-icon"><i data-lucide="lock" class="w-4 h-4"></i></div>
+          <h3>Alterar Senha</h3>
+        </div>
+
+        <div class="account-field">
+          <label class="form-label" for="account-password-current">Senha atual</label>
+          <input id="account-password-current" type="password" class="form-input" placeholder="********" autocomplete="current-password">
+        </div>
+        <div class="account-field">
+          <label class="form-label" for="account-password-new">Nova senha</label>
+          <input id="account-password-new" type="password" class="form-input" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+        </div>
+        <div class="account-field">
+          <label class="form-label" for="account-password-confirm">Confirmar nova senha</label>
+          <input id="account-password-confirm" type="password" class="form-input" placeholder="Repita a nova senha" autocomplete="new-password">
+        </div>
+        <button id="account-save-password-btn" type="button" class="account-save-btn">
+          <i data-lucide="lock" class="w-4 h-4"></i>
+          Salvar senha
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========================= SUPABASE =========================
+let SUPA_URL = '';
+let SUPA_KEY = '';
+let sb = null;
+let API_OK = false;
+let currentUser = null;
+let _lojasCache = null;
+let _supabaseInitPromise = null;
+let _supabaseConfig = null;
+let _bootstrapId = null;
+let _bootstrapRetryHandler = null;
+const CURRENT_USER_STORAGE_KEY = 'sfera.currentUser';
+
+const PAPEIS = {
+  admin: { label: 'Administrador' },
+  loja: { label: 'Loja' },
+  gestora: { label: 'Gestora' },
+};
+
+const RECURSOS_ACESSO = [
+  { key: 'dashboard' },
+  { key: 'pedidos' },
+  { key: 'formulario' },
+  { key: 'lojas-cadastro' },
+  { key: 'usuarios' },
+  { key: 'stock-checks-read' },
+  { key: 'stock-checks-admin' },
+];
+
+function clearRuntimeErrorBanner() {
+  const existing = document.getElementById('runtime-error-banner');
+  if (existing) existing.remove();
+}
+
+function setBootstrapId(bootId) {
+  _bootstrapId = bootId || null;
+}
+
+function getBootstrapId() {
+  return _bootstrapId;
+}
+
+function setBootstrapRetryHandler(handler) {
+  _bootstrapRetryHandler = typeof handler === 'function' ? handler : null;
+}
+
+function getBootstrapRetryHandler() {
+  return _bootstrapRetryHandler;
+}
+
+function logBootstrapEvent(stage, phase, details) {
+  const label = phase ? `[boot] ${stage}:${phase}` : `[boot] ${stage}`;
+  const payload = { bootId: _bootstrapId || undefined };
+
+  if (details && typeof details === 'object') {
+    payload.details = details;
+  }
+
+  console.info(label, payload);
+}
+
+function logAuthEvent(event, details) {
+  const payload = { bootId: _bootstrapId || undefined };
+
+  if (details && typeof details === 'object') {
+    payload.details = details;
+  }
+
+  console.info(`[auth-event] ${event}`, payload);
+}
+
+function withTimeout(label, promise, timeoutMs) {
+  let timeoutId;
+
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
+
+function showRuntimeError(error, context) {
+  try {
+    console.error('[runtime-error]', error, context || '');
+
+    const content = document.getElementById('content');
+    if (!content) {
+      console.error('Container principal #content nao encontrado');
+      return;
+    }
+
+    clearRuntimeErrorBanner();
+
+    const banner = document.createElement('section');
+    banner.id = 'runtime-error-banner';
+    banner.className = 'bg-red-50 border border-red-200 rounded-xl shadow-sm p-5 space-y-3';
+
+    const title = document.createElement('h2');
+    title.className = 'text-base font-semibold text-red-800';
+    title.textContent = 'Application error';
+
+    const message = document.createElement('div');
+    message.className = 'text-sm text-red-700';
+    message.textContent = error?.message || String(error || 'Unknown error');
+
+    const source = document.createElement('div');
+    source.className = 'text-xs text-red-600 font-mono whitespace-pre-wrap';
+    source.textContent = [
+      context?.page ? `page: ${context.page}` : '',
+      error?.filename || error?.fileName || '',
+      error?.lineno || error?.lineNumber ? `line: ${error.lineno || error.lineNumber}` : '',
+      error?.stack || '',
+    ].filter(Boolean).join('\n');
+
+    banner.appendChild(title);
+    banner.appendChild(message);
+    banner.appendChild(source);
+
+    content.innerHTML = '';
+    content.appendChild(banner);
+  } catch (bannerError) {
+    console.error('[runtime-error-banner] failed:', bannerError);
+  }
+}
+
+window.AppDiagnostics = {
+  clearRuntimeErrorBanner,
+  getBootstrapId,
+  getBootstrapRetryHandler,
+  logAuthEvent,
+  logBootstrapEvent,
+  setBootstrapId,
+  setBootstrapRetryHandler,
+  showRuntimeError,
+  withTimeout,
+};
+
+window.addEventListener('error', function handleWindowError(event) {
+  console.error('[window.error]', event.error || event.message, event.filename, event.lineno, event.colno);
+  showRuntimeError(event.error || new Error(event.message), {
+    column: event.colno,
+    filename: event.filename,
+    line: event.lineno,
+  });
+});
+
+window.addEventListener('unhandledrejection', function handleUnhandledRejection(event) {
+  console.error('[unhandledrejection]', event.reason);
+  showRuntimeError(event.reason instanceof Error ? event.reason : new Error(String(event.reason || 'Unhandled rejection')));
+});
+
+const {
+  buildPermissions,
+  canAccessResource,
+  mapOrderRecord,
+  mapRole,
+  renderDrawerHistory,
+  renderDrawerItems,
+  renderDrawerStatusBar,
+  statCard,
+  statusBadge,
+  waveCard,
+} = window.AppUtils;
+
+const { itemRow } = window.FormModule;
+
+async function initSupabase() {
+  if (sb && sb.auth) return sb;
+  if (_supabaseInitPromise) return _supabaseInitPromise;
+
+  _supabaseInitPromise = (async () => {
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+      throw new Error('Biblioteca Supabase nao carregada.');
+    }
+
+    logBootstrapEvent('config', 'start');
+
+    let response;
+    try {
+      response = await withTimeout('config', fetch('/api/config'), 8000);
+    } catch (error) {
+      logBootstrapEvent('config', 'error', { message: error?.message || 'config timeout' });
+      throw error;
+    }
+
+    if (!response.ok) {
+      const error = new Error('Nao foi possivel carregar a configuracao do frontend.');
+      logBootstrapEvent('config', 'error', { message: error.message });
+      throw error;
+    }
+
+    let config;
+    try {
+      config = await response.json();
+    } catch (error) {
+      logBootstrapEvent('config', 'error', { message: error?.message || 'config json' });
+      throw error;
+    }
+
+    SUPA_URL = config.supabaseUrl || '';
+    SUPA_KEY = config.supabaseAnonKey || '';
+    _supabaseConfig = config;
+
+    if (!SUPA_URL || !SUPA_KEY) {
+      const error = new Error('Variaveis publicas do Supabase nao configuradas.');
+      logBootstrapEvent('config', 'error', { message: error.message });
+      throw error;
+    }
+
+    logBootstrapEvent('config', 'complete');
+    logBootstrapEvent('client', 'start');
+
+    try {
+      sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
+        auth: {
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          persistSession: true,
+        },
+      });
+    } catch (error) {
+      logBootstrapEvent('client', 'error', { message: error?.message || 'client create' });
+      throw error;
+    }
+
+    if (!sb || !sb.auth) {
+      const error = new Error('Cliente Supabase invalido.');
+      logBootstrapEvent('client', 'error', { message: error.message });
+      throw error;
+    }
+
+    logBootstrapEvent('client', 'complete');
+    return sb;
+  })().catch((error) => {
+    _supabaseInitPromise = null;
+    throw error;
+  });
+
+  return _supabaseInitPromise;
+}
+
+function isSupabaseReady() {
+  return Boolean(SUPA_URL && SUPA_KEY && sb && sb.auth);
+}
+
+function getSupabaseConfig() {
+  return _supabaseConfig;
+}
+
+function showBootstrapError(error, options) {
+  const bootstrap = document.getElementById('bootstrap-screen');
+  const app = document.getElementById('app');
+  const loginScreen = document.getElementById('login-screen');
+  if (app) app.classList.add('hidden');
+  if (loginScreen) loginScreen.classList.add('hidden');
+  if (!bootstrap) return;
+
+  bootstrap.classList.remove('hidden');
+  bootstrap.dataset.state = 'error';
+  bootstrap.innerHTML = '';
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'max-w-md mx-auto text-center px-6';
+
+  const badge = document.createElement('div');
+  badge.className = 'w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center mx-auto mb-4';
+  badge.innerHTML = '<span class="font-bold text-sm">SF</span>';
+
+  const title = document.createElement('div');
+  title.className = 'text-sm font-semibold';
+  title.textContent = 'Não foi possível iniciar o sistema.';
+
+  const message = document.createElement('div');
+  message.className = 'text-xs text-slate-300 mt-2 whitespace-pre-wrap';
+  message.textContent = String(error?.message || error || 'Falha desconhecida.');
+
+  const details = document.createElement('div');
+  details.className = 'mt-3 text-xs text-slate-400 font-mono whitespace-pre-wrap';
+  details.textContent = [
+    error?.filename || error?.fileName || '',
+    error?.lineno || error?.lineNumber ? `line: ${error.lineno || error.lineNumber}` : '',
+    error?.stack || '',
+  ].filter(Boolean).join('\n');
+
+  const actions = document.createElement('div');
+  actions.className = 'mt-5 flex items-center justify-center gap-3';
+
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'px-4 py-2 rounded-lg bg-white text-slate-900 text-sm font-medium';
+  retry.textContent = 'Tentar novamente';
+  retry.addEventListener('click', () => {
+    const retryHandler = typeof options?.retry === 'function' ? options.retry : getBootstrapRetryHandler();
+    if (retryHandler) {
+      retryHandler();
+      return;
+    }
+
+    window.location.reload();
+  });
+
+  const login = document.createElement('button');
+  login.type = 'button';
+  login.className = 'px-4 py-2 rounded-lg border border-white/20 text-white text-sm font-medium';
+  login.textContent = 'Ir para o login';
+  login.addEventListener('click', () => {
+    if (window.AppShellModule && typeof window.AppShellModule.navigateTo === 'function') {
+      window.AppShellModule.navigateTo('/login', { replace: true, force: true });
+      return;
+    }
+
+    window.location.href = '/login';
+  });
+
+  actions.appendChild(retry);
+  actions.appendChild(login);
+  wrapper.appendChild(badge);
+  wrapper.appendChild(title);
+  wrapper.appendChild(message);
+  wrapper.appendChild(details);
+  wrapper.appendChild(actions);
+  bootstrap.appendChild(wrapper);
+}
+
+function hideBootstrapScreen() {
+  const bootstrap = document.getElementById('bootstrap-screen');
+  if (bootstrap) bootstrap.classList.add('hidden');
+}
+
+async function carregarLojas() {
+  if (!sb) throw new Error('Cliente Supabase nao inicializado.');
+  if (_lojasCache && _lojasCache.length) return _lojasCache;
+
+  await window.StoresModule.loadStores({
+    getSb: () => sb,
+  });
+  _lojasCache = window.StoresModule.getAllStores();
+  return _lojasCache;
+}
+
+async function checkBackend() {
+  try {
+    const response = await withTimeout('api/health', fetch('/api/health'), 5000);
+    API_OK = response.ok && !!sb;
+  } catch {
+    API_OK = false;
+  }
+}
+
+async function carregarPedidos(filtros = {}) {
+  return window.OrdersDataModule.carregarPedidos(filtros, {
+    API_OK: () => API_OK,
+    carregarLojas,
+    getSb: () => sb,
+    mapOrderRecord,
+  });
+}
+
+async function listOrdersForCurrentProfile(params = {}) {
+  return window.OrdersDataModule.listOrdersForCurrentProfile(params, {
+    API_OK: () => API_OK,
+    getCurrentUser,
+    getSb: () => sb,
+  });
+}
+
+async function carregarPedido(id) {
+  return window.OrdersDataModule.carregarPedido(id, {
+    API_OK: () => API_OK,
+    getSb: () => sb,
+    mapOrderRecord,
+  });
+}
+
+async function carregarStats() {
+  return window.OrdersDataModule.carregarStats({
+    API_OK: () => API_OK,
+    getSb: () => sb,
+  });
+}
+
+async function enviarPedidoAPI(formData) {
+  return window.OrdersDataModule.enviarPedidoAPI(formData, {
+    getCurrentUser: () => currentUser,
+    getSb: () => sb,
+  });
+}
+
+async function resubmitChangedOrderAPI(payload) {
+  return window.OrdersDataModule.resubmitChangedOrderAPI(payload, {
+    getCurrentUser: () => currentUser,
+    getSb: () => sb,
+  });
+}
+
+async function markOrderPlacedAPI(payload) {
+  return window.OrdersDataModule.markOrderPlacedAPI(payload, {
+    getSb: () => sb,
+  });
+}
+
+async function fillPlacedValuesAPI(payload) {
+  return window.OrdersDataModule.fillPlacedValuesAPI(payload, {
+    getSb: () => sb,
+  });
+}
+
+async function confirmReceiptAPI(id, deps, options) {
+  return window.OrdersDataModule.confirmReceiptAPI(id, {
+    getSb: () => sb,
+  }, options);
+}
+
+async function decidirPedidoAPI(id, status, justificativa) {
+  return window.OrdersDataModule.decidirPedidoAPI(id, status, justificativa, {
+    getSb: () => sb,
+  });
+}
+
+function canApproveOrder(user, order) {
+  return window.AppUtils.canApproveOrder(user, order);
+}
+
+function canRejectOrder(user, order) {
+  return window.AppUtils.canRejectOrder(user, order);
+}
+
+function canRequestChangesOrder(user, order) {
+  return window.AppUtils.canRequestChangesOrder(user, order);
+}
+
+function canViewOrderImage(user, order) {
+  return window.AppUtils.canViewOrderImage(user, order);
+}
+
+async function openPedido(id) {
+  return window.OrdersModule.openPedido(id, {
+    API_OK: () => API_OK,
+    carregarPedido,
+    decidirPedidoAPI,
+    deletarPedidoAPI: (id, deps, password) => window.OrdersDataModule.deletarPedidoAPI(id, { ...deps, getSb: () => sb }, password),
+    canApproveOrder,
+    canConfirmReceipt: window.AppUtils?.canConfirmReceipt,
+    canDeleteOrder: window.AppUtils?.canDeleteOrder,
+    canMarkOrderPlaced: window.AppUtils?.canMarkOrderPlaced,
+    canRejectOrder,
+    canEditOrder: window.AppUtils?.canEditOrder,
+    canRequestChangesOrder,
+    canViewOrderImage,
+    confirmReceiptAPI,
+    listOrdersForCurrentProfile,
+    navigateTo: window.AppShellModule?.navigateTo,
+    getCurrentUser,
+    markOrderPlacedAPI,
+    showToast,
+    renderDrawerStatusBar,
+    renderDrawerItems,
+    renderDrawerHistory,
+  });
+}
+
+function closeDrawer() {
+  return window.OrdersModule.closeDrawer();
+}
+
+async function decidirPedido(id, acao) {
+  return window.OrdersModule.decidirPedido(id, acao, {
+    API_OK: () => API_OK,
+    decidirPedidoAPI,
+    showToast,
+  });
+}
+
+async function setCurrentUser(user) {
+  currentUser = user;
+}
+
+function getCurrentUser() {
+  return currentUser;
+}
+
+function getStoredCurrentUser() {
+  return null;
+}
+
+async function carregarPermissoes(papel) {
+  return window.AppShellModule.carregarPermissoes(papel, {
+    buildPermissions,
+    recursosAcesso: RECURSOS_ACESSO,
+  });
+}
+
+function canAccess(recurso) {
+  return window.AppShellModule.canAccess(recurso, {
+    canAccessResource,
+    getCurrentUser,
+  });
+}
+
+function aplicarPermissoes() {
+  return window.AppShellModule.aplicarPermissoes({
+    canAccessResource,
+    getCurrentUser,
+    recursosAcesso: RECURSOS_ACESSO,
+    buildPermissions,
+  });
+}
+
+function showPage(page) {
+  return window.AppShellModule.showPage(page);
+}
+
+function navigateTo(path, options) {
+  return window.AppShellModule.navigateTo(path, options);
+}
+
+function handleRouteChange(options) {
+  return window.AppShellModule.handleRouteChange(options);
+}
+
+function toggleSidebar() {
+  return window.AppShellModule.toggleSidebar();
+}
+
+function showToast(msg) {
+  return window.AppShellModule.showToast(msg);
+}
+
+function addItem() {
+  return window.FormModule.addItem();
+}
+
+function removeItem(index) {
+  return window.FormModule.removeItem(index);
+}
+
+function toggleCiclo() {
+  return window.FormModule.toggleCiclo();
+}
+
+function toggleMotivoOutro() {
+  return window.FormModule.toggleMotivoOutro();
+}
+
+function handleFotoUpload(input) {
+  return window.FormModule.handleFotoUpload(input);
+}
+
+function handleFotoDrop(event) {
+  return window.FormModule.handleFotoDrop(event, { showToast });
+}
+
+function resetForm() {
+  return window.FormModule.resetForm();
+}
+
+async function submitForm() {
+  return window.FormModule.submitForm({
+    API_OK: () => API_OK,
+    afterRenderForm: () => window.AppShellModule.handleRouteChange({ force: true }),
+    enviarPedidoAPI,
+    showToast,
+  });
+}
+
+function filtrarLojas() {
+  return window.StoresModule.filtrarLojas();
+}
+
+function abrirModalLoja() {
+  return window.StoresModule.abrirModalLoja();
+}
+
+function fecharModalLoja() {
+  return window.StoresModule.fecharModalLoja();
+}
+
+function editarLoja(id) {
+  return window.StoresModule.editarLoja(id);
+}
+
+async function salvarLoja() {
+  _lojasCache = null;
+  return window.StoresModule.salvarLoja({
+    sb,
+    showToast,
+  });
+}
+
+async function toggleAtivoLoja(id, ativo) {
+  _lojasCache = null;
+  return window.StoresModule.toggleAtivoLoja(id, ativo, {
+    sb,
+    showToast,
+  });
+}
+
+async function excluirLoja(id) {
+  _lojasCache = null;
+  return window.StoresModule.excluirLoja(id, {
+    sb,
+    showToast,
+  });
+}
+
+function toggleSenhaVisivel(inputId, button) {
+  return window.AuthModule.toggleSenhaVisivel(inputId, button);
+}
+
+async function iniciarApp() {
+  return window.AuthModule.iniciarApp({
+    aplicarPermissoes,
+    canAccess,
+    carregarPermissoes,
+    checkBackend,
+    getCurrentUser,
+    handleRouteChange,
+    papeis: PAPEIS,
+    showPage,
+  });
+}
+
+async function listUsers(params) {
+  return window.UsersDataModule.listUsers(params, {
+    getSb: () => sb,
+  });
+}
+
+async function createUser(payload) {
+  return window.UsersDataModule.createUser(payload, {
+    getSb: () => sb,
+  });
+}
+
+async function updateUser(userId, payload) {
+  return window.UsersDataModule.updateUser(userId, payload, {
+    getSb: () => sb,
+  });
+}
+
+async function deleteUser(userId) {
+  return window.UsersDataModule.removeUser(userId, {
+    getSb: () => sb,
+  });
+}
+
+async function validateImport(rows) {
+  return window.UsersDataModule.validateImport(rows, {
+    getSb: () => sb,
+  });
+}
+
+async function importUsers(rows) {
+  return window.UsersDataModule.importUsers(rows, {
+    getSb: () => sb,
+  });
+}
+
+async function exportUsers(params) {
+  return window.UsersDataModule.exportUsers(params, {
+    getSb: () => sb,
+  });
+}
+
+async function fazerLogin() {
+  return window.AuthModule.fazerLogin({
+    getSb: () => sb,
+    initSupabase,
+  iniciarApp,
+  initSupabase,
+  mapRole,
+    setCurrentUser,
+    navigateTo,
+  });
+}
+
+async function fazerLogout() {
+  return window.AuthModule.fazerLogout({
+    getSb: () => sb,
+    initSupabase,
+    setCurrentUser,
+    navigateTo,
+  });
+}
+
+window.AppShellModule.setRouterContext({
+  API_OK: () => API_OK,
+  afterRenderForm: () => window.AppShellModule.handleRouteChange({ force: true }),
+  canConfirmReceipt: window.AppUtils.canConfirmReceipt,
+  canDeleteOrder: window.AppUtils.canDeleteOrder,
+  canFillPlacedValues: window.AppUtils.canFillPlacedValues,
+  canMarkOrderPlaced: window.AppUtils.canMarkOrderPlaced,
+  carregarLojas,
+  carregarPedido,
+  carregarPedidos,
+  carregarStats,
+  decidirPedidoAPI,
+  confirmReceiptAPI,
+  enqueueRouteRefresh: () => window.AppShellModule.handleRouteChange({ force: true }),
+  getCurrentUser,
+  getSb: () => sb,
+  isSupabaseReady,
+  listOrdersForCurrentProfile,
+  listUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  validateImport,
+  importUsers,
+  exportUsers,
+  iniciarApp,
+  mapRole,
+  navigateTo,
+  enviarPedidoAPI,
+  fillPlacedValuesAPI,
+  markOrderPlacedAPI,
+  resubmitChangedOrderAPI,
+  renderDashboard: window.DashboardModule.renderDashboard,
+  renderDrawerHistory,
+  renderDrawerItems,
+  renderDrawerStatusBar,
+  showPage,
+  showToast,
+  statCard,
+  statusBadge,
+  setCurrentUser,
+  waveCard,
+});
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await window.AuthModule.bootstrap({
+    aplicarPermissoes,
+    canAccess,
+    carregarPermissoes,
+  checkBackend,
+  getCurrentUser,
+  getStoredCurrentUser,
+  getSb: () => sb,
+  hideBootstrapScreen,
+  initSupabase,
+  isSupabaseReady,
+  iniciarApp,
+    handleRouteChange,
+    mapRole,
+    papeis: PAPEIS,
+    setCurrentUser,
+    showBootstrapError,
+    showPage,
+    navigateTo,
+  });
+});
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
