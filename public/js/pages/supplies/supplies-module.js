@@ -132,6 +132,10 @@
       S.aba = b.dataset.tab;
       S.busca = '';
       S.lojaDetalhe = null;
+      try {
+        window.history.replaceState({}, '', '/suprimentos?aba=' + encodeURIComponent(S.aba));
+        window.dispatchEvent(new Event('sup:aba'));
+      } catch (e) { /* sem URL/menu sincronizado: a aba continua funcionando */ }
       renderTabs();
       renderAba();
     });

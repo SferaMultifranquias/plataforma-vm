@@ -140,6 +140,13 @@
     if (navListenersBound) return;
     navListenersBound = true;
 
+    // Trocar de aba dentro de Suprimentos muda a URL (?aba=) sem recarregar; o menu acompanha.
+    if (typeof window.addEventListener === 'function') {
+      window.addEventListener('sup:aba', function onSupAba() {
+        updateActiveNavigation(window.location.pathname);
+      });
+    }
+
     document.addEventListener('click', function handleDocumentClick(event) {
       var link = event.target && event.target.closest('a[data-route]');
       if (!link) return;
@@ -567,9 +574,24 @@
 
   function updateActiveNavigation(pathname) {
     var normalized = normalizePath(pathname);
+    var searchAba = '';
+    try {
+      searchAba = new URLSearchParams(window.location.search).get('aba') || '';
+    } catch (err) {
+      searchAba = '';
+    }
+    // O botão "Novo Pedido" do cabeçalho é do VM: não aparece dentro de Suprimentos.
+    var headerNovoPedido = document.getElementById('header-novo-pedido');
+    if (headerNovoPedido && headerNovoPedido.classList) {
+      headerNovoPedido.classList.toggle('hidden', normalized === '/suprimentos');
+    }
     document.querySelectorAll('a[data-route].nav-item').forEach(function updateLink(link) {
       var linkPath = link.getAttribute('data-route');
       var active = linkPath === normalized;
+      var supAba = link.getAttribute('data-sup-aba');
+      if (active && supAba) {
+        active = searchAba ? searchAba === supAba : link.hasAttribute('data-sup-default');
+      }
       link.classList.toggle('bg-blue-600', active);
       link.classList.toggle('text-white', active);
       link.classList.toggle('font-medium', active);
@@ -591,6 +613,13 @@
       var resource = element.getAttribute('data-resource');
       var allowed = canAccess(resource, deps);
       element.style.display = allowed ? '' : 'none';
+    });
+
+    // Menu de Suprimentos: itens do admin e itens da loja não se misturam.
+    var supUser = deps.getCurrentUser ? deps.getCurrentUser() : null;
+    var supPapel = supUser && supUser.papel === 'admin' ? 'admin' : 'loja';
+    document.querySelectorAll('[data-sup-papel]').forEach(function filterSupMenu(element) {
+      if (element.getAttribute('data-sup-papel') !== supPapel) element.style.display = 'none';
     });
 
     var adminGroup = document.getElementById('nav-admin');
