@@ -346,6 +346,35 @@
         },
       },
       {
+        path: '/suprimentos',
+        key: 'suprimentos',
+        resource: 'suprimentos',
+        title: 'Suprimentos',
+        subtitle: function subtitleSuprimentos() {
+          var currentUser = routerContext.getCurrentUser ? routerContext.getCurrentUser() : null;
+          return currentUser && currentUser.papel === 'admin'
+            ? 'Solicitações de materiais de consumo e cadastro de itens das lojas.'
+            : 'Conte o estoque da loja e envie a solicitação de compra para a Sfera.';
+        },
+        template: '/pages/suprimentos.html',
+        init: function initSuprimentos(deps) {
+          if (!global.SuppliesModule || typeof global.SuppliesModule.afterRenderSuprimentos !== 'function') return Promise.resolve();
+          return global.SuppliesModule.afterRenderSuprimentos({
+            getCurrentUser: deps.getCurrentUser,
+            getSb: deps.getSb,
+            navigateTo: deps.navigateTo,
+            params: deps.params,
+            showToast: deps.showToast,
+          });
+        },
+        destroy: function destroySuprimentos() {
+          if (global.SuppliesModule && typeof global.SuppliesModule.beforeLeave === 'function') {
+            return global.SuppliesModule.beforeLeave();
+          }
+          return Promise.resolve();
+        },
+      },
+      {
         path: '/estoque',
         key: 'estoque',
         resource: 'stock-checks-read',
@@ -701,10 +730,17 @@
 
     setShellVisibility(route);
 
-    if (!route.public && !canAccess(route.resource, {
+    var accessDeps = {
       canAccessResource: global.AppUtils && global.AppUtils.canAccessResource,
       getCurrentUser: routerContext.getCurrentUser,
-    })) {
+    };
+    if (!route.public && !canAccess(route.resource, accessDeps)) {
+      // Usuários só de Suprimentos (lojas fora do VM) caem direto no módulo deles.
+      var suppliesUser = routerContext.getCurrentUser && routerContext.getCurrentUser();
+      if (suppliesUser && suppliesUser.usa_vm === false && route.path !== '/suprimentos' && canAccess('suprimentos', accessDeps)) {
+        await navigateTo('/suprimentos', { replace: true, force: true });
+        return null;
+      }
       await clearCurrentPage();
       pendingRouteSignature = '';
       currentRouteSignature = signature;
@@ -904,7 +940,7 @@
     aplicarPermissoes: aplicarPermissoes,
     canAccess: canAccess,
     carregarPermissoes: function carregarPermissoes(papel, deps) {
-      perms = deps.buildPermissions(papel, deps.recursosAcesso);
+      perms = deps.buildPermissions(papel, deps.recursosAcesso, deps.opcoes);
     },
     getPageRoutes: getPageRoutes,
     handleRouteChange: handleRouteChange,

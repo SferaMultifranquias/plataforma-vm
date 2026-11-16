@@ -267,10 +267,21 @@
     };
   }
 
-  function buildPermissions(role, resources) {
+  var ADMIN_ONLY_RESOURCES = ['usuarios', 'controle-acesso', 'lojas-cadastro', 'suprimentos-admin'];
+  // Recursos liberados para usuários de lojas que não usam o VM (Levi's, Hering, Venda Direta).
+  var SUPPLIES_ONLY_RESOURCES = ['suprimentos'];
+
+  function buildPermissions(role, resources, options) {
     var permissions = {};
+    var suppliesOnly = role !== 'admin' && Boolean(options) && options.usaVm === false;
     resources.forEach(function assignPermission(resource) {
-      permissions[resource.key] = role === 'admin' || !['usuarios', 'controle-acesso', 'lojas-cadastro'].includes(resource.key);
+      if (role === 'admin') {
+        permissions[resource.key] = true;
+      } else if (suppliesOnly) {
+        permissions[resource.key] = SUPPLIES_ONLY_RESOURCES.includes(resource.key);
+      } else {
+        permissions[resource.key] = !ADMIN_ONLY_RESOURCES.includes(resource.key);
+      }
     });
     return permissions;
   }

@@ -256,7 +256,7 @@ async function run() {
 
   assert.match(server, /require\('\.\/src\/server\/app'\)/);
   assert.match(serverApp, /express\.static\(PUBLIC_DIR/);
-  assert.match(serverApp, /app\.get\(\['\/dashboard', '\/login', '\/pedidos', '\/novo-pedido', '\/lojas', '\/usuarios', '\/estoque'\]/);
+  assert.match(serverApp, /app\.get\(\['\/dashboard', '\/login', '\/pedidos', '\/novo-pedido', '\/lojas', '\/usuarios', '\/estoque', '\/suprimentos'\]/);
   assert.doesNotMatch(serverApp, /app\.get\('\*'/);
   assert.match(serverApp, /\/api\/config/);
   assert.match(serverApp, /\/api\/health/);

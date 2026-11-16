@@ -107,6 +107,19 @@
     }
   }
 
+  // Lojas fora do VM (Levi's, Hering, Venda Direta) acessam só o módulo Suprimentos.
+  // Em caso de falha, mantém o comportamento antigo (acesso ao VM).
+  async function carregarAcessoVm(sb, papel) {
+    if (papel === 'admin' || !sb || typeof sb.rpc !== 'function') return true;
+    try {
+      var result = await withTimeout('vm access', sb.rpc('current_user_uses_vm'), 8000);
+      if (result && !result.error && result.data === false) return false;
+    } catch (error) {
+      console.warn('Falha ao verificar acesso ao VM:', error && error.message ? error.message : error);
+    }
+    return true;
+  }
+
   async function carregarUsuarioAtual(deps) {
     var sb = await ensureSb(deps);
     logBoot('user', 'start');
@@ -174,6 +187,8 @@
       throw new Error('Usuario inativo. Contate um administrador.');
     }
 
+    var usaVm = await carregarAcessoVm(sb, deps.mapRole(resolvedRole));
+
     return {
       id: profile?.id || authUser.id,
       nome: resolvedName,
@@ -182,6 +197,7 @@
       role: String(resolvedRole || 'USER').toUpperCase(),
       ativo: resolvedActive !== false,
       loja_id: null,
+      usa_vm: usaVm,
     };
   }
 
@@ -439,6 +455,7 @@
       lojasEl?.classList.add('hidden');
     } else {
       adminEl?.classList.remove('hidden');
+      lojasEl?.classList.remove('hidden');
     }
 
     logBoot('permissions', 'start');
