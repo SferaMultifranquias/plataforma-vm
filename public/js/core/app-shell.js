@@ -585,6 +585,11 @@
     if (headerNovoPedido && headerNovoPedido.classList) {
       headerNovoPedido.classList.toggle('hidden', normalized === '/suprimentos');
     }
+    // Em Suprimentos a loja faz o pedido ali mesmo (contagem + enviar), não no formulário do VM.
+    var headerNovoPedidoSup = document.getElementById('header-novo-pedido-sup');
+    if (headerNovoPedidoSup && headerNovoPedidoSup.classList) {
+      headerNovoPedidoSup.classList.toggle('hidden', normalized !== '/suprimentos');
+    }
     document.querySelectorAll('a[data-route].nav-item').forEach(function updateLink(link) {
       var linkPath = link.getAttribute('data-route');
       var active = linkPath === normalized;
