@@ -66,6 +66,9 @@
       erro(e, 'Não foi possível carregar as lojas.');
       S.lojas = [];
     }
+    if (S.admin) {
+      $('sup-store-select').innerHTML = '<option value="">Escolher loja…</option>' + S.lojas.map(function opt(l) { return '<option value="' + esc(l.id) + '">' + esc(l.nome) + '</option>'; }).join('');
+    }
     var params = deps.params || {};
     var abaPedida = params.aba || (typeof params.get === 'function' ? params.get('aba') : null);
     var abas = abasDisponiveis();
@@ -95,6 +98,7 @@
     if (S.admin) {
       return [
         { key: 'solicitacoes', label: 'Solicitações das lojas', icon: 'inbox' },
+        { key: 'contagem', label: 'Pedido por loja', icon: 'clipboard-list' },
         { key: 'itens', label: 'Cadastro de itens', icon: 'list' },
         { key: 'lojas', label: 'Lojas', icon: 'store' },
       ];
@@ -109,7 +113,17 @@
     $('sup-tabs').innerHTML = abasDisponiveis().map(function tab(a) {
       return '<button type="button" class="sup-tab' + (S.aba === a.key ? ' is-active' : '') + '" data-tab="' + a.key + '"><i data-lucide="' + a.icon + '" class="w-4 h-4"></i><span>' + esc(a.label) + '</span></button>';
     }).join('');
+    // Admin só vê o seletor de loja na aba "Pedido por loja".
+    if (S.admin) $('sup-store-wrapper').classList.toggle('hidden', S.aba !== 'contagem');
     icons();
+  }
+
+  // Mantém a URL (?aba=) e o destaque do menu lateral em sincronia com a aba aberta.
+  function sincronizarUrl() {
+    try {
+      window.history.replaceState({}, '', '/suprimentos?aba=' + encodeURIComponent(S.aba));
+      window.dispatchEvent(new Event('sup:aba'));
+    } catch (e) { /* sem URL/menu sincronizado: a aba continua funcionando */ }
   }
 
   function montarSeletorLoja() {
@@ -132,17 +146,15 @@
       S.aba = b.dataset.tab;
       S.busca = '';
       S.lojaDetalhe = null;
-      try {
-        window.history.replaceState({}, '', '/suprimentos?aba=' + encodeURIComponent(S.aba));
-        window.dispatchEvent(new Event('sup:aba'));
-      } catch (e) { /* sem URL/menu sincronizado: a aba continua funcionando */ }
+      sincronizarUrl();
+      if (S.admin && S.aba === 'contagem' && S.lojaId) await carregarLoja();
       renderTabs();
       renderAba();
     });
     on($('sup-store-select'), 'change', async function onStore(ev) {
       if (S.dirty) await salvarContagemAgora();
-      S.lojaId = Number(ev.target.value);
-      await carregarLoja();
+      S.lojaId = ev.target.value ? Number(ev.target.value) : null;
+      if (S.lojaId) await carregarLoja();
       renderAba();
     });
     on($('sup-content'), 'click', onContentClick);
@@ -161,7 +173,10 @@
     if (!el) return;
     el.innerHTML = '<div class="sup-empty">Carregando…</div>';
     try {
-      if (S.aba === 'contagem') renderContagem();
+      if (S.aba === 'contagem') {
+        if (S.admin && !S.lojaId) el.innerHTML = '<div class="sup-card"><div class="sup-empty">Escolha a loja no campo “Loja” acima para fazer o pedido de suprimentos por ela.</div></div>';
+        else renderContagem();
+      }
       else if (S.aba === 'minhas') renderMinhas();
       else if (S.aba === 'solicitacoes') await renderSolicitacoesAdmin();
       else if (S.aba === 'itens') await renderCatalogo();
@@ -340,11 +355,14 @@
       b.disabled = true;
       try {
         await salvarContagemAgora();
-        var s = await D.enviarSolicitacao(S.sb, S.lojaId, m, $('sup-envio-obs').value.trim());
+        var obs = $('sup-envio-obs').value.trim();
+        if (S.admin) obs = ('[Feito pela Sfera] ' + obs).trim().slice(0, 500);
+        var s = await D.enviarSolicitacao(S.sb, S.lojaId, m, obs);
         fecharModal();
-        toast('Solicitação ' + (s && s.numero ? s.numero : '') + ' enviada para a Sfera.');
-        S.sols = await D.listarSolicitacoes(S.sb, S.lojaId);
-        S.aba = 'minhas';
+        toast('Solicitação ' + (s && s.numero ? s.numero : '') + (S.admin ? ' registrada.' : ' enviada para a Sfera.'));
+        S.sols = await D.listarSolicitacoes(S.sb, S.admin ? null : S.lojaId);
+        S.aba = S.admin ? 'solicitacoes' : 'minhas';
+        sincronizarUrl();
         renderTabs();
         renderAba();
       } catch (e) {
