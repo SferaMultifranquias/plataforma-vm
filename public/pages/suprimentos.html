@@ -1,0 +1,29 @@
+<div class="animate-in space-y-5 sup-page">
+  <section class="sup-toolbar-card">
+    <nav id="sup-tabs" class="sup-tabs" aria-label="Seções de suprimentos"></nav>
+    <div class="sup-toolbar-right">
+      <label id="sup-store-wrapper" class="sup-store-picker hidden">
+        <span class="sup-store-label">Loja</span>
+        <select id="sup-store-select" class="form-select sup-control" aria-label="Escolher loja"></select>
+      </label>
+    </div>
+  </section>
+
+  <section id="sup-content" aria-live="polite">
+    <div class="sup-empty">Carregando…</div>
+  </section>
+</div>
+
+<div id="sup-modal" class="sup-modal hidden" role="dialog" aria-modal="true" aria-labelledby="sup-modal-title">
+  <div class="sup-modal-backdrop" data-sup-close></div>
+  <div class="sup-modal-panel">
+    <header class="sup-modal-header">
+      <h3 id="sup-modal-title" class="sup-modal-title"></h3>
+      <button type="button" class="sup-icon-btn" data-sup-close aria-label="Fechar">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </header>
+    <div id="sup-modal-body" class="sup-modal-body"></div>
+    <footer id="sup-modal-footer" class="sup-modal-footer"></footer>
+  </div>
+</div>

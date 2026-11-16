@@ -22,30 +22,33 @@ tailwind.config = {
 <script src="/vendor/supabase/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.11.0/src/sha256.min.js" integrity="sha384-QjbMdgv/hWELlDRbhj6tXsKlzXhrlrSIGNqgdQVvxYQpo+vA+4jOWramMq56bPSg" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
-<script src="/js/shared/app-utils.js?v=20260702-1"></script>
-<script src="/js/shared/order-rules.js?v=20260702-1"></script>
-<script src="/js/shared/confirmation-modal.js?v=20260702-1"></script>
-<script src="/js/pages/stores/stores-module.js?v=20260702-1"></script>
-<script src="/js/pages/orders/orders-module.js?v=20260702-1"></script>
-<script src="/js/pages/order-form/order-form-module.js?v=20260702-1"></script>
-<script src="/js/pages/dashboard/dashboard-module.js?v=20260702-1"></script>
-<script src="/js/core/auth.js?v=20260702-1"></script>
-<script src="/js/pages/orders/orders-data.js?v=20260702-1"></script>
-<script src="/js/pages/users/users-data.js?v=20260702-1"></script>
-<script src="/js/pages/users/users-module.js?v=20260702-1"></script>
-<script src="/js/pages/inventory/inventory-data.js?v=20260702-1"></script>
-<script src="/js/pages/inventory/inventory-module.js?v=20260702-1"></script>
-<script src="/js/pages/account/account-module.js?v=20260702-1"></script>
-<script src="/js/core/app-shell.js?v=20260702-1"></script>
-<link rel="stylesheet" href="/styles/pages/orders.css?v=20260702-1">
-<link rel="stylesheet" href="/styles/pages/order-form.css?v=20260702-1">
-<link rel="stylesheet" href="/styles/pages/users.css?v=20260702-1">
-<link rel="stylesheet" href="/styles/pages/login.css?v=20260702-1">
-<link rel="stylesheet" href="/styles/pages/stores.css?v=20260702-1">
-<link rel="stylesheet" href="/styles/pages/dashboard.css?v=20260702-1">
-<link rel="stylesheet" href="/styles/pages/inventory.css?v=20260702-1">
+<script src="/js/shared/app-utils.js?v=20261116-1"></script>
+<script src="/js/shared/order-rules.js?v=20261116-1"></script>
+<script src="/js/shared/confirmation-modal.js?v=20261116-1"></script>
+<script src="/js/pages/stores/stores-module.js?v=20261116-1"></script>
+<script src="/js/pages/orders/orders-module.js?v=20261116-1"></script>
+<script src="/js/pages/order-form/order-form-module.js?v=20261116-1"></script>
+<script src="/js/pages/dashboard/dashboard-module.js?v=20261116-1"></script>
+<script src="/js/core/auth.js?v=20261116-1"></script>
+<script src="/js/pages/orders/orders-data.js?v=20261116-1"></script>
+<script src="/js/pages/users/users-data.js?v=20261116-1"></script>
+<script src="/js/pages/users/users-module.js?v=20261116-1"></script>
+<script src="/js/pages/inventory/inventory-data.js?v=20261116-1"></script>
+<script src="/js/pages/inventory/inventory-module.js?v=20261116-1"></script>
+<script src="/js/pages/account/account-module.js?v=20261116-1"></script>
+<script src="/js/pages/supplies/supplies-data.js?v=20261116-1"></script>
+<script src="/js/pages/supplies/supplies-module.js?v=20261116-1"></script>
+<script src="/js/core/app-shell.js?v=20261116-1"></script>
+<link rel="stylesheet" href="/styles/pages/orders.css?v=20261116-1">
+<link rel="stylesheet" href="/styles/pages/order-form.css?v=20261116-1">
+<link rel="stylesheet" href="/styles/pages/users.css?v=20261116-1">
+<link rel="stylesheet" href="/styles/pages/login.css?v=20261116-1">
+<link rel="stylesheet" href="/styles/pages/stores.css?v=20261116-1">
+<link rel="stylesheet" href="/styles/pages/dashboard.css?v=20261116-1">
+<link rel="stylesheet" href="/styles/pages/inventory.css?v=20261116-1">
+<link rel="stylesheet" href="/styles/pages/supplies.css?v=20261116-1">
 <script>
-window.APP_VERSION = '20260702-1';
+window.APP_VERSION = '20261116-1';
 </script>
 <style>
   * { font-family: 'Inter', system-ui, sans-serif; }
@@ -108,7 +111,7 @@ window.APP_VERSION = '20260702-1';
     </div>
 
     <nav class="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto overflow-x-hidden">
-      <div class="sidebar-text px-2 mb-1">
+      <div class="sidebar-text px-2 mb-1" data-resource="dashboard">
         <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Geral</span>
       </div>
       <a href="/dashboard" data-route="/dashboard" data-resource="dashboard" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
@@ -116,7 +119,7 @@ window.APP_VERSION = '20260702-1';
         <span class="sidebar-text text-sm whitespace-nowrap">Dashboard</span>
       </a>
 
-      <div class="sidebar-text px-2 pt-3 pb-1">
+      <div class="sidebar-text px-2 pt-3 pb-1" data-resource="pedidos">
         <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Operação</span>
       </div>
       <a href="/novo-pedido" data-route="/novo-pedido" data-resource="formulario" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
@@ -130,6 +133,13 @@ window.APP_VERSION = '20260702-1';
       <a id="nav-estoque" href="/estoque" data-route="/estoque" data-resource="stock-checks-read" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
         <i data-lucide="warehouse" class="w-5 h-5 shrink-0"></i>
         <span class="sidebar-text text-sm whitespace-nowrap">Estoque</span>
+      </a>
+      <div id="nav-suprimentos-titulo" class="sidebar-text px-2 pt-3 pb-1" data-resource="suprimentos">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Suprimentos</span>
+      </div>
+      <a id="nav-suprimentos" href="/suprimentos" data-route="/suprimentos" data-resource="suprimentos" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="package-check" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Materiais de consumo</span>
       </a>
       <div id="nav-admin" class="sidebar-text px-2 pt-3 pb-1 flex items-center gap-2">
         <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Administração</span>
@@ -227,6 +237,8 @@ window.APP_VERSION = '20260702-1';
             <select id="fl-marca" class="form-select">
               <option value="O Boticario">O Boticario</option>
               <option value="QDB">QDB</option>
+              <option value="Levi's">Levi's</option>
+              <option value="Hering">Hering</option>
             </select>
           </div>
         </div>
@@ -263,6 +275,25 @@ window.APP_VERSION = '20260702-1';
             <option value="true">Ativa</option>
             <option value="false">Inativa</option>
           </select>
+        </div>
+      </section>
+
+      <section class="stores-form-section" aria-labelledby="stores-section-access-title">
+        <div class="stores-form-section-heading">
+          <span class="stores-form-section-icon" aria-hidden="true"><i data-lucide="key-round" class="w-4 h-4"></i></span>
+          <h4 id="stores-section-access-title">Acesso</h4>
+        </div>
+
+        <div class="stores-field">
+          <label class="form-label" for="fl-usa-vm">Usuários desta loja acessam</label>
+          <select id="fl-usa-vm" class="form-select">
+            <option value="true">VM e Suprimentos</option>
+            <option value="false">Somente Suprimentos (Levi's, Hering, Venda Direta)</option>
+          </select>
+        </div>
+        <div class="stores-field">
+          <label class="form-label" for="fl-centro-custo">Centro de custo</label>
+          <input id="fl-centro-custo" type="text" maxlength="40" class="form-input" placeholder="Opcional">
         </div>
       </section>
     </div>
@@ -459,6 +490,8 @@ const RECURSOS_ACESSO = [
   { key: 'usuarios' },
   { key: 'stock-checks-read' },
   { key: 'stock-checks-admin' },
+  { key: 'suprimentos' },
+  { key: 'suprimentos-admin' },
 ];
 
 function clearRuntimeErrorBanner() {
@@ -922,9 +955,11 @@ function getStoredCurrentUser() {
 }
 
 async function carregarPermissoes(papel) {
+  const usuario = getCurrentUser();
   return window.AppShellModule.carregarPermissoes(papel, {
     buildPermissions,
     recursosAcesso: RECURSOS_ACESSO,
+    opcoes: { usaVm: !usuario || usuario.usa_vm !== false },
   });
 }
 

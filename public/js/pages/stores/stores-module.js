@@ -1,4 +1,6 @@
 (function initStoresModule(global) {
+  var STORE_BRANDS = ['O Boticario', 'QDB', "Levi's", 'Hering'];
+
   var allStores = [];
   var storeLoadState = 'idle';
   var storeLoadError = null;
@@ -35,6 +37,8 @@
       id: store.id,
       marca: store.marca || '',
       nome: store.nome || '',
+      usa_vm: store.usa_vm !== false,
+      centro_custo: store.centro_custo || '',
     };
   }
 
@@ -266,7 +270,7 @@
     try {
       result = await sb
         .from('lojas')
-        .select('id,codigo,nome,marca,ativo,cidade,estado')
+        .select('id,codigo,nome,marca,ativo,cidade,estado,usa_vm,centro_custo')
         .order('nome');
     } catch (error) {
       setAllStores([]);
@@ -344,6 +348,10 @@
     document.getElementById('fl-codigo').value = (store && store.codigo) || '';
     document.getElementById('fl-nome').value = (store && store.nome) || '';
     document.getElementById('fl-marca').value = (store && store.marca) || 'O Boticario';
+    var usaVmField = document.getElementById('fl-usa-vm');
+    if (usaVmField) usaVmField.value = store && store.usa_vm === false ? 'false' : 'true';
+    var centroCustoField = document.getElementById('fl-centro-custo');
+    if (centroCustoField) centroCustoField.value = (store && store.centro_custo) || '';
     document.getElementById('fl-cidade').value = (store && store.cidade) || '';
     document.getElementById('fl-estado').value = (store && store.estado) || '';
     document.getElementById('fl-ativo').value = isEdit ? String(!!store.ativo) : 'true';
@@ -429,11 +437,15 @@
     var cidade = document.getElementById('fl-cidade').value.trim();
     var estado = document.getElementById('fl-estado').value.trim().toUpperCase();
     var ativo = document.getElementById('fl-ativo').value === 'true';
+    var usaVmEl = document.getElementById('fl-usa-vm');
+    var centroCustoEl = document.getElementById('fl-centro-custo');
+    var usaVm = usaVmEl ? usaVmEl.value !== 'false' : true;
+    var centroCusto = centroCustoEl ? centroCustoEl.value.trim() : '';
 
     var errors = [];
     if (!codigo) errors.push('Código é obrigatório.');
     if (!nome) errors.push('Nome da loja é obrigatório.');
-    if (!['O Boticario', 'QDB'].includes(marca)) errors.push('Selecione uma marca.');
+    if (!STORE_BRANDS.includes(marca)) errors.push('Selecione uma marca.');
     if (cidade && cidade.length > 50) errors.push('Cidade deve ter no máximo 50 caracteres.');
     if (estado && !/^[A-Z]{2}$/.test(estado)) {
       errors.push('Estado deve ter exatamente 2 letras (ex: SP).');
@@ -454,6 +466,8 @@
       ativo: ativo,
       cidade: cidade || null,
       estado: estado || null,
+      usa_vm: usaVm,
+      centro_custo: centroCusto || null,
     };
 
     try {

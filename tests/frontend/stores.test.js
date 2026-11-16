@@ -159,8 +159,8 @@ async function run() {
   assert.match(storesModuleCode, /estado: store\.estado/);
   assert.doesNotMatch(storesModuleCode, /uf: store\.uf/);
 
-  // loadStores select includes cidade,estado
-  assert.match(storesModuleCode, /\.select\('id,codigo,nome,marca,ativo,cidade,estado'\)/);
+  // loadStores select includes cidade,estado and the supplies access fields
+  assert.match(storesModuleCode, /\.select\('id,codigo,nome,marca,ativo,cidade,estado,usa_vm,centro_custo'\)/);
 
   // salvarLoja payload only has contract fields
   assert.match(storesModuleCode, /payload = \{/);
