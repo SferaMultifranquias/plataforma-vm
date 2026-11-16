@@ -52,6 +52,41 @@
     return { itens: linhas, total: Math.round(total * 100) / 100 };
   }
 
+  // Pedido direto: a loja informa só a quantidade que precisa pedir (sem estoque físico/ideal).
+  function calcularPedidoLinha(item, quantidade) {
+    var custo = item.custo_unitario === null || item.custo_unitario === undefined ? null : Number(item.custo_unitario);
+    var n = quantidade === '' || quantidade === null || quantidade === undefined ? NaN : Number(quantidade);
+    var compra = !isNaN(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+    return {
+      compra: compra,
+      custo: custo,
+      total: custo !== null && compra > 0 ? Math.round(custo * compra * 100) / 100 : 0,
+    };
+  }
+
+  function montarPedido(itens, quantidades) {
+    var linhas = [];
+    var total = 0;
+    (itens || []).forEach(function eachItem(item) {
+      if (item.ativo === false) return;
+      var calc = calcularPedidoLinha(item, quantidades ? quantidades[item.id] : null);
+      if (calc.compra <= 0) return;
+      total += calc.total;
+      linhas.push({
+        item: item.id,
+        nome: item.nome,
+        categoria: item.categoria,
+        und: item.unidade,
+        fornecedor: item.fornecedor || null,
+        ideal: null,
+        fisico: null,
+        compra: calc.compra,
+        custo: calc.custo,
+      });
+    });
+    return { itens: linhas, total: Math.round(total * 100) / 100 };
+  }
+
   function moda(valores) {
     var contagem = {};
     var melhor = null;
@@ -260,6 +295,7 @@
     agruparCatalogo: agruparCatalogo,
     atualizarItens: atualizarItens,
     calcularLinha: calcularLinha,
+    calcularPedidoLinha: calcularPedidoLinha,
     carregarContagem: carregarContagem,
     enviarSolicitacao: enviarSolicitacao,
     excluirItens: excluirItens,
@@ -271,6 +307,7 @@
     listarLojas: listarLojas,
     listarSolicitacoes: listarSolicitacoes,
     listarTodosItens: listarTodosItens,
+    montarPedido: montarPedido,
     montarSolicitacao: montarSolicitacao,
     normalizarTexto: normalizarTexto,
     parseNumero: parseNumero,

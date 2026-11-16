@@ -72,6 +72,24 @@ test('montarSolicitacao leva só itens ativos com compra e soma o total', () => 
   assert.equal(m.total, 4);
 });
 
+test('montarPedido leva só a quantidade pedida pela loja, sem estoque físico/ideal', () => {
+  const itens = [
+    { id: 'a', nome: 'A', unidade: 'UN', categoria: 'Limpeza', custo_unitario: 2, fornecedor: 'X' },
+    { id: 'b', nome: 'B', unidade: 'PCT', categoria: 'Limpeza', custo_unitario: 10 },
+    { id: 'c', nome: 'C', unidade: 'UN', categoria: 'Limpeza', custo_unitario: 1, ativo: false },
+    { id: 'd', nome: 'D', unidade: 'UN', categoria: 'Limpeza', custo_unitario: null },
+  ];
+  const m = Sup.montarPedido(itens, { a: 3, b: 0, c: 5, d: 2 });
+  assert.deepEqual(m.itens.map((i) => i.item), ['a', 'd']);
+  assert.equal(m.itens[0].compra, 3);
+  assert.equal(m.itens[0].fisico, null);
+  assert.equal(m.itens[0].ideal, null);
+  assert.equal(m.itens[0].fornecedor, 'X');
+  assert.equal(m.total, 6);
+  assert.equal(Sup.calcularPedidoLinha({ custo_unitario: 2.5 }, '').compra, 0);
+  assert.equal(Sup.calcularPedidoLinha({ custo_unitario: 2.5 }, 4).total, 10);
+});
+
 test('agruparCatalogo junta o mesmo item de várias lojas e aponta custo diferente', () => {
   const g = Sup.agruparCatalogo([
     { id: '1', store_id: 1, nome: 'Copo descartável 200 ml', categoria: 'Copa', unidade: 'PCT', estoque_ideal: 3, custo_unitario: 5.9 },

@@ -361,7 +361,7 @@
           var currentUser = routerContext.getCurrentUser ? routerContext.getCurrentUser() : null;
           return currentUser && currentUser.papel === 'admin'
             ? 'Solicitações de materiais de consumo e cadastro de itens das lojas.'
-            : 'Conte o estoque da loja e envie a solicitação de compra para a Sfera.';
+            : 'Informe as quantidades que a loja precisa e envie o pedido de suprimentos para a Sfera.';
         },
         template: '/pages/suprimentos.html',
         init: function initSuprimentos(deps) {

@@ -104,7 +104,7 @@
       ];
     }
     return [
-      { key: 'contagem', label: 'Contagem de estoque', icon: 'clipboard-list' },
+      { key: 'contagem', label: 'Novo pedido', icon: 'clipboard-list' },
       { key: 'minhas', label: 'Minhas solicitações', icon: 'send' },
     ];
   }
@@ -248,22 +248,19 @@
     var ativos = S.itens.filter(function a(i) { return i.ativo !== false; });
     var r = { itens: ativos.length, contados: 0, comprar: 0, total: 0 };
     ativos.forEach(function each(i) {
-      var c = D.calcularLinha(i, valores[i.id]);
-      if (c.contado) r.contados++;
-      if (c.compra > 0) { r.comprar++; r.total += c.total; }
+      var c = D.calcularPedidoLinha(i, valores[i.id]);
+      if (c.compra > 0) { r.contados++; r.comprar++; r.total += c.total; }
     });
     return r;
   }
 
-  function linhaContagem(i, mostrarIdeal) {
-    var c = D.calcularLinha(i, valorFisico(i.id));
+  function linhaContagem(i) {
+    var c = D.calcularPedidoLinha(i, valorFisico(i.id));
     return '<tr data-row="' + esc(i.id) + '"' + (c.compra > 0 ? ' class="sup-row--buy"' : '') + '>' +
       '<td><div class="sup-item-name">' + esc(i.nome) + '</div></td>' +
       '<td class="sup-muted">' + esc(i.categoria) + '</td>' +
       '<td class="sup-muted sup-center">' + esc(i.unidade) + '</td>' +
-      (mostrarIdeal ? '<td class="sup-num">' + num(i.estoque_ideal) + '</td>' : '') +
-      '<td class="sup-num"><input class="form-input sup-qty" inputmode="decimal" data-fisico="' + esc(i.id) + '" value="' + esc(decimalBR(valorFisico(i.id))) + '" placeholder="—" aria-label="Estoque físico de ' + esc(i.nome) + '"></td>' +
-      '<td class="sup-num" data-cell="compra">' + (c.contado ? (c.compra > 0 ? '<b>' + num(c.compra) + '</b>' : '<span class="sup-ok">ok</span>') : '<span class="sup-muted">—</span>') + '</td>' +
+      '<td class="sup-num"><input class="form-input sup-qty" inputmode="decimal" data-fisico="' + esc(i.id) + '" value="' + esc(decimalBR(valorFisico(i.id))) + '" placeholder="0" aria-label="Quantidade a pedir de ' + esc(i.nome) + '"></td>' +
       '<td class="sup-num">' + brl(c.custo) + '</td>' +
       '<td class="sup-num" data-cell="total">' + (c.total ? brl(c.total) : '<span class="sup-muted">—</span>') + '</td>' +
     '</tr>';
@@ -272,10 +269,10 @@
   function kpisContagem() {
     var r = resumoContagem();
     return '<div class="sup-kpis" id="sup-kpis">' +
-      kpi('Itens da loja', r.itens, r.contados + ' contados') +
-      kpi('Itens para comprar', r.comprar, 'abaixo do estoque ideal') +
-      kpi('Valor da compra', brl(r.total), 'pela contagem atual', 'accent') +
-      kpi('Última contagem salva', S.contagem.atualizado_em ? dataHora(S.contagem.atualizado_em) : 'nunca', S.dirty ? 'salvando…' : 'salva automaticamente') +
+      kpi('Itens da loja', r.itens, 'lista disponível para pedir') +
+      kpi('Itens no pedido', r.comprar, 'com quantidade preenchida') +
+      kpi('Valor do pedido', brl(r.total), 'pela quantidade informada', 'accent') +
+      kpi('Rascunho salvo', S.contagem.atualizado_em ? dataHora(S.contagem.atualizado_em) : 'nunca', S.dirty ? 'salvando…' : 'salvo automaticamente') +
     '</div>';
   }
   function kpi(titulo, valor, sub, tom) {
@@ -289,16 +286,15 @@
   }
 
   function renderContagem() {
-    var mostrarIdeal = S.admin;
     var lista = itensVisiveis();
     $('sup-content').innerHTML = kpisContagem() +
       '<div class="sup-card">' +
         '<div class="sup-card-head">' + filtrosItens() +
-          '<div class="sup-actions"><button type="button" class="sup-btn sup-btn--primary" data-action="abrir-envio"><i data-lucide="send" class="w-4 h-4"></i><span>Enviar solicitação</span></button></div></div>' +
-        (S.itens.length ? '' : '<div class="sup-empty">A Sfera ainda não cadastrou a lista de itens desta loja.</div>') +
-        '<div class="sup-table-scroll"><table class="sup-table"><thead><tr><th>Item</th><th>Categoria</th><th class="sup-center">Und</th>' + (mostrarIdeal ? '<th class="sup-num">Estoque ideal</th>' : '') + '<th class="sup-num">Estoque físico</th><th class="sup-num">Compra necessária</th><th class="sup-num">Custo unit.</th><th class="sup-num">Valor total</th></tr></thead>' +
-        '<tbody>' + (lista.map(function l(i) { return linhaContagem(i, mostrarIdeal); }).join('') || (S.itens.length ? '<tr><td colspan="8" class="sup-empty">Nenhum item encontrado.</td></tr>' : '')) + '</tbody></table></div>' +
-        '<p class="sup-hint">Digite a quantidade que existe hoje na loja. A contagem é salva sozinha; quando terminar, clique em <b>Enviar solicitação</b>.</p>' +
+          '<div class="sup-actions"><button type="button" class="sup-btn sup-btn--primary" data-action="abrir-envio"><i data-lucide="send" class="w-4 h-4"></i><span>Enviar pedido</span></button></div></div>' +
+        (S.itens.length ? '' : '<div class="sup-empty">' + (S.admin ? 'Esta loja ainda não tem lista de itens. Cadastre em “Lojas” (colar lista do Excel ou copiar de outra loja).' : 'A Sfera ainda não cadastrou a lista de itens desta loja.') + '</div>') +
+        '<div class="sup-table-scroll"><table class="sup-table"><thead><tr><th>Item</th><th>Categoria</th><th class="sup-center">Und</th><th class="sup-num">Quantidade a pedir</th><th class="sup-num">Custo unit.</th><th class="sup-num">Valor total</th></tr></thead>' +
+        '<tbody>' + (lista.map(function l(i) { return linhaContagem(i); }).join('') || (S.itens.length ? '<tr><td colspan="6" class="sup-empty">Nenhum item encontrado.</td></tr>' : '')) + '</tbody></table></div>' +
+        '<p class="sup-hint">Digite só a quantidade que a loja precisa pedir. O rascunho é salvo sozinho; quando terminar, clique em <b>Enviar pedido</b>.</p>' +
       '</div>';
   }
 
@@ -306,9 +302,8 @@
     var tr = document.querySelector('tr[data-row="' + CSS.escape(id) + '"]');
     var item = S.itens.find(function f(i) { return i.id === id; });
     if (!tr || !item) return;
-    var c = D.calcularLinha(item, valorFisico(id));
+    var c = D.calcularPedidoLinha(item, valorFisico(id));
     tr.classList.toggle('sup-row--buy', c.compra > 0);
-    tr.querySelector('[data-cell="compra"]').innerHTML = c.contado ? (c.compra > 0 ? '<b>' + num(c.compra) + '</b>' : '<span class="sup-ok">ok</span>') : '<span class="sup-muted">—</span>';
     tr.querySelector('[data-cell="total"]').innerHTML = c.total ? brl(c.total) : '<span class="sup-muted">—</span>';
     var k = $('sup-kpis');
     if (k) k.outerHTML = kpisContagem();
@@ -337,15 +332,13 @@
   }
 
   function abrirEnvio() {
-    var m = D.montarSolicitacao(S.itens, valoresAtuais());
-    var faltam = resumoContagem();
+    var m = D.montarPedido(S.itens, valoresAtuais());
     if (!m.itens.length) {
-      toast(faltam.contados ? 'Nenhum item abaixo do estoque ideal. Não há o que solicitar.' : 'Preencha o estoque físico antes de enviar.');
+      toast('Informe a quantidade de pelo menos um item antes de enviar.');
       return;
     }
-    var aviso = faltam.contados < faltam.itens ? '<div class="sup-banner sup-banner--warn">' + (faltam.itens - faltam.contados) + ' itens ainda não foram contados e ficam fora da solicitação.</div>' : '';
-    abrirModal('Enviar solicitação para a Sfera',
-      aviso + '<div class="sup-table-scroll sup-table-scroll--modal"><table class="sup-table"><thead><tr><th>Item</th><th class="sup-center">Und</th><th class="sup-num">Quantidade</th><th class="sup-num">Valor</th></tr></thead><tbody>' +
+    abrirModal(S.admin ? 'Registrar pedido da loja' : 'Enviar pedido para a Sfera',
+      '<div class="sup-table-scroll sup-table-scroll--modal"><table class="sup-table"><thead><tr><th>Item</th><th class="sup-center">Und</th><th class="sup-num">Quantidade</th><th class="sup-num">Valor</th></tr></thead><tbody>' +
       m.itens.map(function l(i) { return '<tr><td>' + esc(i.nome) + '</td><td class="sup-center sup-muted">' + esc(i.und) + '</td><td class="sup-num">' + num(i.compra) + '</td><td class="sup-num">' + brl(i.custo !== null ? i.custo * i.compra : null) + '</td></tr>'; }).join('') +
       '</tbody><tfoot><tr><td colspan="3">Total</td><td class="sup-num">' + brl(m.total) + '</td></tr></tfoot></table></div>' +
       '<label class="sup-field"><span>Observação (opcional)</span><textarea id="sup-envio-obs" class="form-input" rows="2" maxlength="500"></textarea></label>',
@@ -358,6 +351,10 @@
         var obs = $('sup-envio-obs').value.trim();
         if (S.admin) obs = ('[Feito pela Sfera] ' + obs).trim().slice(0, 500);
         var s = await D.enviarSolicitacao(S.sb, S.lojaId, m, obs);
+        // Pedido enviado: o próximo começa em branco.
+        S.local = {};
+        S.contagem = { store_id: S.lojaId, valores: {}, atualizado_em: null };
+        try { await D.salvarContagem(S.sb, S.lojaId, {}); } catch (e) { /* rascunho antigo pode ficar; o pedido já foi enviado */ }
         fecharModal();
         toast('Solicitação ' + (s && s.numero ? s.numero : '') + (S.admin ? ' registrada.' : ' enviada para a Sfera.'));
         S.sols = await D.listarSolicitacoes(S.sb, S.admin ? null : S.lojaId);
@@ -419,7 +416,7 @@
     abrirModal('Solicitação ' + s.numero + ' · ' + lojaNome(s.store_id),
       '<div class="sup-meta">' + pill(s.status) + '<span>Enviada em ' + dataHora(s.criado_em) + '</span>' + (s.respondido_em ? '<span>Respondida em ' + dataHora(s.respondido_em) + '</span>' : '') + '</div>' +
       (s.observacao ? '<div class="sup-banner">Observação da loja: ' + esc(s.observacao) + '</div>' : '') +
-      tabelaItensSolicitacao(s, true) +
+      tabelaItensSolicitacao(s, (s.itens || []).some(function temFisico(i) { return i.fisico !== null && i.fisico !== undefined; })) +
       '<div class="sup-grid2"><label class="sup-field"><span>Status</span><select id="sup-resp-status" class="form-select">' +
       Object.keys(STATUS).map(function o(k) { return '<option value="' + k + '"' + (s.status === k ? ' selected' : '') + '>' + STATUS[k].label + '</option>'; }).join('') +
       '</select></label><label class="sup-field"><span>Resposta para a loja</span><input id="sup-resp-texto" class="form-input" maxlength="300" value="' + esc(s.resposta || '') + '" placeholder="Ex.: pedido feito, entrega até sexta"></label></div>',
@@ -814,8 +811,8 @@
       var r = R[item.store_id];
       if (!r || item.ativo === false) return;
       r.itens++;
-      var calc = D.calcularLinha(item, ((cont[item.store_id] || {}).valores || {})[item.id]);
-      if (calc.contado) r.contados++;
+      var calc = D.calcularPedidoLinha(item, ((cont[item.store_id] || {}).valores || {})[item.id]);
+      if (calc.compra > 0) r.contados++;
       r.compra += calc.total;
     });
     res[2].forEach(function s(x) { if (R[x.store_id] && x.status === 'pendente') R[x.store_id].pend++; });
@@ -830,7 +827,7 @@
     var semLista = S.lojas.filter(function f(l) { return !(R[l.id] || {}).itens; }).length;
     $('sup-content').innerHTML = '<div class="sup-card"><div class="sup-card-head"><div class="sup-filters"><div class="sup-search"><i data-lucide="search" class="w-4 h-4"></i><input id="sup-busca" type="search" class="form-input" placeholder="Buscar loja, código ou marca…" value="' + esc(S.busca) + '"></div></div>' +
       '<div class="sup-actions"><span class="sup-muted">' + (semLista ? semLista + ' lojas sem lista de itens' : 'Todas as lojas têm lista') + '</span><button type="button" class="sup-btn" data-action="atualizar-lojas"><i data-lucide="refresh-cw" class="w-4 h-4"></i><span>Atualizar</span></button></div></div>' +
-      '<div class="sup-table-scroll"><table class="sup-table sup-table--click"><thead><tr><th>Loja</th><th>Marca</th><th>Acesso</th><th class="sup-num">Itens</th><th>Última contagem</th><th class="sup-num">Contados</th><th class="sup-num">Compra necessária</th><th class="sup-num">Pendentes</th></tr></thead><tbody>' +
+      '<div class="sup-table-scroll"><table class="sup-table sup-table--click"><thead><tr><th>Loja</th><th>Marca</th><th>Acesso</th><th class="sup-num">Itens</th><th>Último rascunho</th><th class="sup-num">Itens no rascunho</th><th class="sup-num">Valor do rascunho</th><th class="sup-num">Pendentes</th></tr></thead><tbody>' +
       lista.map(function row(l) {
         var r = R[l.id] || {};
         return '<tr data-loja="' + esc(l.id) + '"><td><b class="sup-strong">' + esc(l.nome) + '</b> <span class="sup-muted sup-small">' + esc(l.codigo || '') + '</span></td><td class="sup-muted">' + esc(l.marca || '') + '</td><td>' + (l.usa_vm === false ? '<span class="sup-pill sup-pill--info">Só Suprimentos</span>' : '<span class="sup-muted sup-small">VM + Suprimentos</span>') + '</td>' +
