@@ -253,4 +253,31 @@ test('fornecedor: abas, menu e fallback sem a tabela no banco', () => {
   assert.ok(!/\son(click|change|input)=/i.test(code));
 });
 
+// ───────────── Exportar pedido em Excel ─────────────
+test('excel do pedido: cabeçalho, itens incluídos, total e observação', () => {
+  const grupo = { numero: 'SUP-2026-00007-1', nomeFornecedor: 'Jaé', linhas: [
+    { nome: 'Copo 200 ml', und: 'PCT', qtd: 3, custo: 4.5, incluir: true },
+    { nome: 'Fita', und: 'UN', qtd: 2, custo: null, incluir: true },
+    { nome: 'Desmarcado', und: 'UN', qtd: 9, custo: 1, incluir: false },
+    { nome: 'Zerado', und: 'UN', qtd: 0, custo: 1, incluir: true },
+  ] };
+  const p = Sup.montarPlanilhaPedido({ grupo, solicitacao: { numero: 'SUP-2026-00007' }, loja: { nome: 'Olegario', codigo: '23453', centro_custo: 'CC1' }, obs: 'Entregar sexta', emissao: '17/11/2026' });
+  assert.equal(p.quantidadeItens, 2);
+  assert.equal(p.total, 13.5);
+  assert.deepEqual(p.linhas[1], ['Pedido Nº', 'SUP-2026-00007-1']);
+  assert.deepEqual(p.linhas[3], ['Fornecedor', 'Jaé']);
+  assert.deepEqual(p.linhas[p.primeiraItem], [1, 'Copo 200 ml', 'PCT', 3, 4.5, 13.5]);
+  assert.deepEqual(p.linhas[p.primeiraItem + 1], [2, 'Fita', 'UN', 2, null, null]);
+  assert.deepEqual(p.linhas[p.primeiraItem + 2], ['', '', '', '', 'TOTAL', 13.5]);
+  assert.deepEqual(p.linhas[p.linhas.length - 1], ['Observações', 'Entregar sexta']);
+  assert.equal(Sup.montarPlanilhaPedido({ grupo: { numero: 'X', linhas: [] }, loja: {} }).linhas.some((l) => l[0] === 'Observações'), false);
+});
+
+test('excel do pedido: botões PDF e Excel na solicitação e geração pelo XLSX já carregado', () => {
+  const code = read('public/js/pages/supplies/supplies-module.js');
+  assert.ok(code.includes("pedidoFornecedor(s, 'pdf')") && code.includes("pedidoFornecedor(s, 'xlsx')"));
+  assert.ok(code.includes('gerarExcelPedido') && code.includes('global.XLSX'));
+  assert.ok(read('public/index.html').includes('xlsx.full.min.js'));
+});
+
 console.log('Supplies tests passed.');

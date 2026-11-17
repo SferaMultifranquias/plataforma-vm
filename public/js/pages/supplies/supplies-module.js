@@ -508,7 +508,7 @@
       '<div class="sup-grid2"><label class="sup-field"><span>Status</span><select id="sup-resp-status" class="form-select">' +
       Object.keys(STATUS).map(function o(k) { return '<option value="' + k + '"' + (s.status === k ? ' selected' : '') + '>' + STATUS[k].label + '</option>'; }).join('') +
       '</select></label><label class="sup-field"><span>Resposta para a loja</span><input id="sup-resp-texto" class="form-input" maxlength="300" value="' + esc(s.resposta || '') + '" placeholder="Ex.: pedido feito, entrega até sexta"></label></div>',
-      '<button type="button" class="sup-btn" id="sup-resp-pdf"><i data-lucide="file-down" class="w-4 h-4"></i><span>PDF para fornecedor</span></button><span class="sup-spacer"></span><button type="button" class="sup-btn" data-sup-close>Fechar</button><button type="button" class="sup-btn sup-btn--primary" id="sup-resp-ok">Salvar resposta</button>', true);
+      '<button type="button" class="sup-btn" id="sup-resp-pdf"><i data-lucide="file-down" class="w-4 h-4"></i><span>PDF para fornecedor</span></button><button type="button" class="sup-btn" id="sup-resp-xlsx"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i><span>Excel para fornecedor</span></button><span class="sup-spacer"></span><button type="button" class="sup-btn" data-sup-close>Fechar</button><button type="button" class="sup-btn sup-btn--primary" id="sup-resp-ok">Salvar resposta</button>', true);
     $('sup-resp-ok').addEventListener('click', async function salvar(ev) {
       ev.currentTarget.disabled = true;
       try {
@@ -518,7 +518,8 @@
         renderAba();
       } catch (e) { ev.currentTarget.disabled = false; erro(e); }
     });
-    $('sup-resp-pdf').addEventListener('click', function pdf() { pedidoFornecedor(s); });
+    $('sup-resp-pdf').addEventListener('click', function pdf() { pedidoFornecedor(s, 'pdf'); });
+    $('sup-resp-xlsx').addEventListener('click', function xlsx() { pedidoFornecedor(s, 'xlsx'); });
   }
 
   function copiarConsolidado() {
@@ -561,7 +562,9 @@
     return global.jspdf.jsPDF;
   }
 
-  async function pedidoFornecedor(s) {
+  async function pedidoFornecedor(s, formato) {
+    var excel = formato === 'xlsx';
+    var rotuloFormato = excel ? 'Excel' : 'PDF';
     var semFornecedor = (s.itens || []).filter(function f(l) { return !l.fornecedor && l.item; }).map(function i(l) { return l.item; });
     var mapa = {};
     try { mapa = await D.fornecedoresDosItens(S.sb, semFornecedor); } catch (e) { console.warn(e); }
@@ -572,17 +575,17 @@
     var secao = function sec(g, gi) {
       return '<div class="sup-pdf-group" data-g="' + gi + '"><div class="sup-grid3"><label class="sup-field"><span>Fornecedor</span><input class="form-input" data-fn value="' + esc(g.nomeFornecedor) + '" placeholder="Nome do fornecedor"></label>' +
         '<label class="sup-field"><span>Nº do pedido</span><input class="form-input sup-mono" data-num value="' + esc(g.numero) + '"></label>' +
-        '<div class="sup-field sup-field--end"><button type="button" class="sup-btn sup-btn--primary" data-baixar>Baixar PDF</button></div></div>' +
+        '<div class="sup-field sup-field--end"><button type="button" class="sup-btn sup-btn--primary" data-baixar>Baixar ' + rotuloFormato + '</button></div></div>' +
         '<div class="sup-table-scroll sup-table-scroll--modal"><table class="sup-table"><thead><tr><th></th><th>Item</th><th class="sup-center">Und</th><th class="sup-num">Qtd</th><th class="sup-num">Valor unit.</th><th class="sup-num">Valor total</th></tr></thead><tbody>' +
         g.linhas.map(function l(x) { return '<tr data-k="' + x.chave + '"><td><input type="checkbox" data-inc checked aria-label="Incluir item"></td><td>' + esc(x.nome) + '</td><td class="sup-center sup-muted">' + esc(x.und) + '</td><td class="sup-num"><input class="form-input sup-qty" data-q value="' + esc(decimalBR(x.qtd)) + '"></td><td class="sup-num"><input class="form-input sup-qty" data-c value="' + esc(x.custo === null ? '' : x.custo.toFixed(2).replace('.', ',')) + '" placeholder="—"></td><td class="sup-num" data-t>' + brl(x.custo === null ? null : x.custo * x.qtd) + '</td></tr>'; }).join('') +
         '</tbody><tfoot><tr><td colspan="5">Total do pedido</td><td class="sup-num" data-tot>' + brl(totalGrupo(g)) + '</td></tr></tfoot></table></div></div>';
     };
-    var modal = abrirModal('Pedido para fornecedor · ' + s.numero,
-      '<p class="sup-muted">' + esc(loja.nome) + ' · ' + (grupos.length > 1 ? grupos.length + ' fornecedores, um PDF para cada' : '1 fornecedor') + '. Ajuste quantidade ou valor se precisar; desmarque o que não vai pedir.</p>' +
+    var modal = abrirModal('Pedido para fornecedor (' + rotuloFormato + ') · ' + s.numero,
+      '<p class="sup-muted">' + esc(loja.nome) + ' · ' + (grupos.length > 1 ? grupos.length + ' fornecedores, um ' + rotuloFormato + ' para cada' : '1 fornecedor') + '. Ajuste quantidade ou valor se precisar; desmarque o que não vai pedir.</p>' +
       grupos.map(secao).join('') +
       '<label class="sup-field"><span>Observação no pedido (opcional)</span><input id="sup-pdf-obs" class="form-input" maxlength="300" placeholder="Ex.: entregar até sexta, faturar para o CNPJ da loja"></label>' +
       (s.status === 'pendente' ? '<label class="sup-check"><input type="checkbox" id="sup-pdf-aprovar" checked> Marcar a solicitação como Aprovada ao baixar</label>' : ''),
-      '<button type="button" class="sup-btn" data-sup-close>Fechar</button>' + (grupos.length > 1 ? '<button type="button" class="sup-btn sup-btn--primary" id="sup-pdf-todos">Baixar todos os PDFs</button>' : ''), true);
+      '<button type="button" class="sup-btn" data-sup-close>Fechar</button>' + (grupos.length > 1 ? '<button type="button" class="sup-btn sup-btn--primary" id="sup-pdf-todos">Baixar todos (' + rotuloFormato + ')</button>' : ''), true);
     var ler = function ler(gi) {
       var g = grupos[gi];
       var el = modal.querySelector('[data-g="' + gi + '"]');
@@ -612,14 +615,14 @@
       if (!gs.length) { toast('Nenhum item marcado para pedir.'); return; }
       botao.disabled = true;
       try {
-        for (var i = 0; i < gs.length; i++) await gerarPdfPedido(s, loja, gs[i], $('sup-pdf-obs').value.trim());
+        for (var i = 0; i < gs.length; i++) await (excel ? gerarExcelPedido : gerarPdfPedido)(s, loja, gs[i], $('sup-pdf-obs').value.trim());
         var ap = $('sup-pdf-aprovar');
         if (ap && ap.checked && !aprovou) {
           await D.responderSolicitacao(S.sb, s.id, 'aprovada', s.resposta || 'Pedido enviado ao fornecedor');
           aprovou = true;
           s.status = 'aprovada';
         }
-        toast(gs.length > 1 ? gs.length + ' PDFs gerados' : 'PDF do pedido ' + gs[0].numero + ' gerado');
+        toast(gs.length > 1 ? gs.length + ' arquivos ' + rotuloFormato + ' gerados' : rotuloFormato + ' do pedido ' + gs[0].numero + ' gerado');
       } catch (e) {
         erro(e, e && e.message);
       } finally {
@@ -632,6 +635,27 @@
     var todos = $('sup-pdf-todos');
     if (todos) todos.addEventListener('click', function all() { baixar(grupos.map(function i(_, k) { return k; }), todos); });
     S.onModalClose = function refresh() { if (aprovou && S.aba === 'solicitacoes') renderAba(); };
+  }
+
+  // Excel do pedido (mesmo conteúdo do PDF), usando a biblioteca XLSX já carregada no index.html.
+  async function gerarExcelPedido(s, loja, g, obs) {
+    var X = global.XLSX;
+    if (!X || !X.utils) throw new Error('Não foi possível carregar o gerador de Excel. Verifique a internet e atualize a página.');
+    var plan = D.montarPlanilhaPedido({ grupo: g, solicitacao: s, loja: loja, obs: obs, emissao: new Date().toLocaleDateString('pt-BR') });
+    var ws = X.utils.aoa_to_sheet(plan.linhas);
+    ws['!cols'] = [{ wch: 24 }, { wch: 46 }, { wch: 8 }, { wch: 10 }, { wch: 14 }, { wch: 16 }];
+    // Números como números no Excel (somam e ordenam): quantidade, valor unitário e total em R$.
+    var ultima = plan.primeiraItem + plan.quantidadeItens; // linha do TOTAL (índice 0)
+    for (var r = plan.primeiraItem; r <= ultima; r++) {
+      [[3, '#,##0.###'], [4, '"R$" #,##0.00'], [5, '"R$" #,##0.00']].forEach(function fmt(c) {
+        var cel = ws[X.utils.encode_cell({ r: r, c: c[0] })];
+        if (cel && cel.t === 'n') cel.z = c[1];
+      });
+    }
+    var wb = X.utils.book_new();
+    X.utils.book_append_sheet(wb, ws, 'Pedido');
+    var slug = function slug(t) { return D.normalizarTexto(t).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30); };
+    X.writeFile(wb, 'Pedido_' + g.numero + '_' + slug(g.nomeFornecedor || 'fornecedor') + '_' + slug(loja.nome) + '.xlsx');
   }
 
   async function gerarPdfPedido(s, loja, g, obs) {

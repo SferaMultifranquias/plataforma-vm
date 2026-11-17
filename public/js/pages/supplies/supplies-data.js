@@ -204,6 +204,35 @@
     return grupos;
   }
 
+  // Monta o conteúdo da planilha (Excel) do pedido de um fornecedor: cabeçalho, itens e total.
+  // Valores são números (a formatação R$ é aplicada na hora de gerar o arquivo).
+  function montarPlanilhaPedido(info) {
+    var g = info.grupo;
+    var loja = info.loja || {};
+    var itens = (g.linhas || []).filter(function incluidos(l) { return l.incluir && l.qtd > 0; });
+    var arred = function arred(v) { return Math.round(v * 100) / 100; };
+    var total = arred(itens.reduce(function sum(a, l) { return a + (l.custo || 0) * l.qtd; }, 0));
+    var linhas = [
+      ['SFERA MULTIFRANQUIAS - Pedido de compra'],
+      ['Pedido Nº', g.numero],
+      ['Emissão', info.emissao || ''],
+      ['Fornecedor', g.nomeFornecedor || 'A definir'],
+      ['Entregar em (loja)', loja.nome || ''],
+      ['Código da loja', loja.codigo || loja.id || ''],
+      ['Centro de custo', loja.centro_custo || ''],
+      ['Ref. solicitação da loja', info.solicitacao ? info.solicitacao.numero : ''],
+      [],
+      ['#', 'Produto', 'Und', 'Qtd', 'Valor unit.', 'Valor total'],
+    ];
+    var primeiraItem = linhas.length;
+    itens.forEach(function eachItem(l, i) {
+      linhas.push([i + 1, l.nome, l.und || '', l.qtd, l.custo === null || l.custo === undefined ? null : l.custo, l.custo === null || l.custo === undefined ? null : arred(l.custo * l.qtd)]);
+    });
+    linhas.push(['', '', '', '', 'TOTAL', total]);
+    if (info.obs) linhas.push([], ['Observações', info.obs]);
+    return { linhas: linhas, primeiraItem: primeiraItem, quantidadeItens: itens.length, total: total };
+  }
+
   // Lê linhas coladas do Excel: Item · Categoria · Und · Estoque ideal · Custo · Fornecedor
   function lerColagemExcel(texto) {
     return String(texto || '').split(/\r?\n/).map(function splitLine(linha) {
@@ -371,6 +400,7 @@
     listarLojas: listarLojas,
     listarSolicitacoes: listarSolicitacoes,
     listarTodosItens: listarTodosItens,
+    montarPlanilhaPedido: montarPlanilhaPedido,
     montarSolicitacao: montarSolicitacao,
     normalizarTexto: normalizarTexto,
     parseNumero: parseNumero,
