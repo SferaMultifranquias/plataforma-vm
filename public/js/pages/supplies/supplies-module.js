@@ -275,7 +275,7 @@
       '<td class="sup-muted">' + esc(i.categoria) + '</td>' +
       '<td class="sup-muted sup-center">' + esc(i.unidade) + '</td>' +
       (mostrarIdeal ? '<td class="sup-num">' + num(i.estoque_ideal) + '</td>' : '') +
-      '<td class="sup-num"><input class="form-input sup-qty" inputmode="decimal" data-fisico="' + esc(i.id) + '" value="' + esc(decimalBR(valorFisico(i.id))) + '" placeholder="—" aria-label="Estoque na loja de ' + esc(i.nome) + '"></td>' +
+      '<td class="sup-num"><input class="form-input sup-qty" inputmode="decimal" data-fisico="' + esc(i.id) + '" value="' + esc(decimalBR(valorFisico(i.id))) + '" placeholder="—" aria-label="Quantidade em estoque de ' + esc(i.nome) + '"></td>' +
       (mostrarIdeal
         ? '<td class="sup-num" data-cell="compra">' + (c.contado ? (c.compra > 0 ? '<b>' + num(c.compra) + '</b>' : '<span class="sup-ok">ok</span>') : '<span class="sup-muted">—</span>') + '</td>' +
           '<td class="sup-num">' + brl(c.custo) + '</td>' +
@@ -318,7 +318,7 @@
         '<div class="sup-card-head">' + filtrosItens() +
           '<div class="sup-actions">' + (S.admin ? '<button type="button" class="sup-btn" data-action="voltar-pedidos"><i data-lucide="arrow-left" class="w-4 h-4"></i><span>Voltar aos pedidos</span></button>' : '') + '<button type="button" class="sup-btn sup-btn--primary" data-action="abrir-envio"><i data-lucide="send" class="w-4 h-4"></i><span>' + (S.admin ? 'Registrar pedido' : 'Enviar contagem') + '</span></button></div></div>' +
         (S.itens.length ? '' : '<div class="sup-empty">' + (S.admin ? 'Esta loja ainda não tem lista de itens. Cadastre em “Lojas” (colar lista do Excel ou copiar de outra loja).' : 'A Sfera ainda não cadastrou a lista de itens desta loja.') + '</div>') +
-        '<div class="sup-table-scroll"><table class="sup-table"><thead><tr><th>Item</th><th>Categoria</th><th class="sup-center">Und</th>' + (S.admin ? '<th class="sup-num">Estoque ideal</th>' : '') + '<th class="sup-num">Estoque na loja</th>' + (S.admin ? '<th class="sup-num">Compra necessária</th><th class="sup-num">Custo unit.</th><th class="sup-num">Valor total</th>' : '') + '</tr></thead>' +
+        '<div class="sup-table-scroll"><table class="sup-table"><thead><tr><th>Item</th><th>Categoria</th><th class="sup-center">Und</th>' + (S.admin ? '<th class="sup-num">Estoque ideal</th>' : '') + '<th class="sup-num">Quantidade em estoque</th>' + (S.admin ? '<th class="sup-num">Compra necessária</th><th class="sup-num">Custo unit.</th><th class="sup-num">Valor total</th>' : '') + '</tr></thead>' +
         '<tbody>' + (lista.map(function l(i) { return linhaContagem(i, S.admin); }).join('') || (S.itens.length ? '<tr><td colspan="' + (S.admin ? 8 : 4) + '" class="sup-empty">Nenhum item encontrado.</td></tr>' : '')) + '</tbody></table></div>' +
         '<p class="sup-hint">' + (S.admin ? 'Digite o estoque que a loja tem hoje; a compra necessária é calculada pelo estoque ideal. A contagem é salva sozinha; quando terminar, clique em <b>Registrar pedido</b>.' : 'Digite a quantidade que a loja tem hoje no estoque. A contagem é salva sozinha; quando terminar, clique em <b>Enviar contagem</b>.') + '</p>' +
       '</div>';
