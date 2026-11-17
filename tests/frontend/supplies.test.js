@@ -200,4 +200,57 @@ test('dashboard: tela própria (rota, partial, menu e script), separada do VM e 
   assert.ok(!/key:\s*'dashboard'/.test(read('public/js/pages/supplies/supplies-module.js')));
 });
 
+// ───────────── Fornecedores ─────────────
+test('fornecedor: normaliza campos e valida nome, CNPJ/CPF e e-mail', () => {
+  const f = Sup.normalizarFornecedor({ nome: '  Jaé Limpeza ', cnpj: '12345678000190', email: ' VENDAS@JAE.COM ', contato: '', ativo: true });
+  assert.equal(f.nome, 'Jaé Limpeza');
+  assert.equal(f.cnpj, '12.345.678/0001-90');
+  assert.equal(f.email, 'vendas@jae.com');
+  assert.equal(f.contato, null);
+  assert.deepEqual(Sup.validarFornecedor(f), []);
+  assert.equal(Sup.formatarDocumento('12345678901'), '123.456.789-01');
+  assert.equal(Sup.validarFornecedor({ nome: '' }).length, 1);
+  assert.ok(Sup.validarFornecedor({ nome: 'X', cnpj: '123' }).some((e) => /CNPJ/.test(e)));
+  assert.ok(Sup.validarFornecedor({ nome: 'X', email: 'sem-arroba' }).some((e) => /E-mail/.test(e)));
+});
+
+const ITENS_FORN = [
+  { id: 'i1', store_id: 1, nome: 'Detergente', categoria: 'Limpeza', unidade: 'UN', estoque_ideal: 2, custo_unitario: 3, fornecedor: 'Jaé', fornecedor_id: 'f1' },
+  { id: 'i2', store_id: 2, nome: 'DETERGENTE', categoria: 'Limpeza', unidade: 'UN', estoque_ideal: 2, custo_unitario: 3, fornecedor: 'Jaé', fornecedor_id: 'f1' },
+  { id: 'i3', store_id: 1, nome: 'Café', categoria: 'Copa', unidade: 'KG', estoque_ideal: 1, custo_unitario: 40, fornecedor: 'Pilão', fornecedor_id: 'f2' },
+  { id: 'i4', store_id: 1, nome: 'Papel', categoria: 'Higiene', unidade: 'PCT', estoque_ideal: 4, custo_unitario: 20, fornecedor: null, fornecedor_id: null },
+];
+
+test('fornecedor: itens por fornecedor agrupam pelo nome e separam os sem fornecedor', () => {
+  const f1 = Sup.itensDoFornecedor(ITENS_FORN, 'f1');
+  assert.equal(f1.length, 1);
+  assert.equal(f1[0].lojas.length, 2);
+  assert.equal(f1[0].fornecedor_id, 'f1');
+  assert.deepEqual(Sup.itensDoFornecedor(ITENS_FORN, '').map((g) => g.nome), ['Papel']);
+  const r = Sup.resumoFornecedores(ITENS_FORN, [{ id: 'f1' }, { id: 'f2' }, { id: 'f3' }]);
+  assert.equal(r.semFornecedor, 1);
+  assert.deepEqual(r.porFornecedor.f1, { itens: 1, lojas: 2 });
+  assert.deepEqual(r.porFornecedor.f3, { itens: 0, lojas: 0 });
+});
+
+test('fornecedor: migration cria tabela com RLS só para admin, liga itens e carrega os nomes já digitados', () => {
+  const sql = read('supabase/migrations/20261117150000_add_supplies_suppliers.sql');
+  assert.ok(sql.includes('alter table public.sup_fornecedores enable row level security'));
+  assert.ok(sql.includes('add column if not exists fornecedor_id uuid references public.sup_fornecedores(id) on delete set null'));
+  assert.ok(!/to authenticated\s+using \(true\)/i.test(sql));
+  assert.equal((sql.match(/public\.is_admin\(\) and public\.current_user_is_active\(\)/g) || []).length >= 4, true);
+  assert.ok(/revoke all on public\.sup_fornecedores from anon/.test(sql));
+  assert.ok(sql.includes('insert into public.sup_fornecedores'));
+  assert.ok(!/\bexecute\s+(format|'|")/i.test(sql));
+});
+
+test('fornecedor: abas, menu e fallback sem a tabela no banco', () => {
+  const code = read('public/js/pages/supplies/supplies-module.js');
+  assert.ok(code.includes("key: 'fornecedores'") && code.includes("key: 'itens-fornecedor'"));
+  assert.ok(code.includes('fornecedoresOk'));
+  const index = read('public/index.html');
+  assert.ok(index.includes('/suprimentos?aba=fornecedores') && index.includes('/suprimentos?aba=itens-fornecedor'));
+  assert.ok(!/\son(click|change|input)=/i.test(code));
+});
+
 console.log('Supplies tests passed.');

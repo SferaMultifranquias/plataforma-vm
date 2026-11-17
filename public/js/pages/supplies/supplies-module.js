@@ -58,6 +58,9 @@
       catalogoRows: null,
       resumo: null,
       lojaDetalhe: null,
+      fornecedores: [],
+      fornecedoresOk: false,
+      fornecedorSel: '',
     };
     bindShell();
     var botaoNovoPedido = document.getElementById('header-novo-pedido-sup');
@@ -71,6 +74,7 @@
     if (S.admin) {
       $('sup-store-select').innerHTML = '<option value="">Escolher loja…</option>' + S.lojas.map(function opt(l) { return '<option value="' + esc(l.id) + '">' + esc(l.nome) + '</option>'; }).join('');
     }
+    if (S.admin) await carregarFornecedores();
     var params = deps.params || {};
     var abaPedida = params.aba || (typeof params.get === 'function' ? params.get('aba') : null);
     var abas = abasDisponiveis();
@@ -102,6 +106,8 @@
         { key: 'solicitacoes', label: 'Solicitações das lojas', icon: 'inbox' },
         { key: 'contagem', label: 'Novo pedido por loja', icon: 'clipboard-list', oculta: true },
         { key: 'itens', label: 'Cadastro de itens', icon: 'list' },
+        { key: 'fornecedores', label: 'Fornecedores', icon: 'truck' },
+        { key: 'itens-fornecedor', label: 'Itens por fornecedor', icon: 'boxes' },
         { key: 'lojas', label: 'Lojas', icon: 'store' },
       ];
     }
@@ -194,6 +200,8 @@
       else if (S.aba === 'minhas') renderMinhas();
       else if (S.aba === 'solicitacoes') await renderSolicitacoesAdmin();
       else if (S.aba === 'itens') await renderCatalogo();
+      else if (S.aba === 'fornecedores') await renderFornecedores();
+      else if (S.aba === 'itens-fornecedor') await renderItensPorFornecedor();
       else if (S.aba === 'lojas') await (S.lojaDetalhe ? renderLojaDetalhe() : renderLojasAdmin());
     } catch (e) {
       erro(e);
@@ -746,20 +754,41 @@
       '<label class="sup-field"><span>Categoria</span><input id="sup-it-cat" class="form-input" list="sup-cats" value="' + esc(base.categoria) + '"></label>' +
       '<label class="sup-field"><span>Und</span><input id="sup-it-und" class="form-input" maxlength="10" value="' + esc(base.unidade) + '"></label>' +
       '<label class="sup-field"><span>Custo unitário (R$)</span><input id="sup-it-custo" class="form-input" inputmode="decimal" value="' + esc(decimalBR(base.custo)) + '"></label>' +
-      '<label class="sup-field sup-span2"><span>Fornecedor</span><input id="sup-it-forn" class="form-input" maxlength="80" value="' + esc(base.fornecedor || '') + '"></label>' +
+      campoFornecedor(base) +
       (comIdeal ? '<label class="sup-field"><span>Estoque ideal</span><input id="sup-it-ideal" class="form-input" inputmode="decimal" value="' + esc(decimalBR(base.ideal)) + '" placeholder="Ex.: 2"></label>' : '') +
       '</div>';
   }
 
+  // Com o cadastro de fornecedores disponível, o item escolhe um fornecedor da lista;
+  // sem ele (migration ainda não aplicada), continua o campo de texto de antes.
+  function campoFornecedor(base) {
+    if (!S.fornecedoresOk) {
+      return '<label class="sup-field sup-span2"><span>Fornecedor</span><input id="sup-it-forn" class="form-input" maxlength="80" value="' + esc(base.fornecedor || '') + '"></label>';
+    }
+    var atual = base.fornecedor_id || '';
+    var opcoes = S.fornecedores.filter(function f(x) { return x.ativo !== false || x.id === atual; }).map(function o(x) {
+      return '<option value="' + esc(x.id) + '"' + (x.id === atual ? ' selected' : '') + '>' + esc(x.nome) + (x.ativo === false ? ' (inativo)' : '') + '</option>';
+    }).join('');
+    return '<label class="sup-field sup-span2"><span>Fornecedor</span><select id="sup-it-forn" class="form-select"><option value="">— sem fornecedor —</option>' + opcoes + '</select></label>';
+  }
+
   function lerCamposItem() {
     var custo = D.parseNumero($('sup-it-custo').value);
-    return {
+    var campos = {
       nome: $('sup-it-nome').value.trim(),
       categoria: $('sup-it-cat').value.trim() || 'Geral',
       unidade: ($('sup-it-und').value.trim() || 'UN').toUpperCase(),
       custo_unitario: isNaN(custo) || custo <= 0 ? null : custo,
-      fornecedor: $('sup-it-forn').value.trim() || null,
     };
+    var campo = $('sup-it-forn');
+    if (S.fornecedoresOk) {
+      var f = S.fornecedores.find(function find(x) { return x.id === campo.value; });
+      campos.fornecedor_id = f ? f.id : null;
+      campos.fornecedor = f ? f.nome : null;
+    } else {
+      campos.fornecedor = campo.value.trim() || null;
+    }
+    return campos;
   }
 
   async function aposAlterarItens(msg) {
@@ -804,7 +833,7 @@
   function editarItemCatalogo(g) {
     var rows = g.linhas.slice().sort(function s(a, b) { return lojaNome(a.store_id).localeCompare(lojaNome(b.store_id), 'pt-BR'); });
     var modal = abrirModal('Editar item · em ' + g.lojas.length + (g.lojas.length === 1 ? ' loja' : ' lojas'),
-      camposItem({ nome: g.nome, categoria: g.categoria, unidade: g.unidade, custo: g.custo, fornecedor: g.fornecedor }, false) +
+      camposItem({ nome: g.nome, categoria: g.categoria, unidade: g.unidade, custo: g.custo, fornecedor: g.fornecedor, fornecedor_id: g.fornecedor_id }, false) +
       (g.custoVaria ? '<div class="sup-banner sup-banner--warn">O custo hoje varia entre as lojas (' + brl(g.custoMin) + ' a ' + brl(g.custoMax) + '). Ao salvar, todas passam a usar o custo informado acima.</div>' : '') +
       '<details class="sup-details"><summary>Lojas com este item e estoque ideal de cada uma</summary><div class="sup-table-scroll sup-table-scroll--modal"><table class="sup-table"><thead><tr><th>Loja</th><th class="sup-num">Estoque ideal</th><th class="sup-center">Ativo</th><th></th></tr></thead><tbody>' +
       rows.map(function r(x) { return '<tr data-r="' + esc(x.id) + '"><td>' + esc(lojaNome(x.store_id)) + '</td><td class="sup-num"><input class="form-input sup-qty" data-ideal value="' + esc(decimalBR(x.estoque_ideal)) + '"></td><td class="sup-center"><input type="checkbox" data-ativo' + (x.ativo !== false ? ' checked' : '') + '></td><td class="sup-num"><button type="button" class="sup-link" data-rm>Remover</button></td></tr>'; }).join('') +
@@ -880,6 +909,193 @@
     copiarTexto(linhas.join('\n'), lista.length + ' itens copiados. Cole no Excel.');
   }
 
+  // ───────────── ADMIN: fornecedores ─────────────
+  async function carregarFornecedores() {
+    try {
+      S.fornecedores = await D.listarFornecedores(S.sb);
+      S.fornecedoresOk = true;
+    } catch (e) {
+      // Tabela ainda não existe no banco (migration não aplicada): o resto do módulo segue funcionando.
+      console.warn('[Suprimentos] fornecedores indisponíveis:', e && e.message);
+      S.fornecedores = [];
+      S.fornecedoresOk = false;
+    }
+  }
+
+  function avisoSemFornecedores() {
+    return '<div class="sup-card"><div class="sup-empty">O cadastro de fornecedores ainda não está disponível no banco de dados. Peça para aplicar a migration <b>20261117150000_add_supplies_suppliers</b>.</div></div>';
+  }
+
+  async function renderFornecedores() {
+    if (!S.fornecedoresOk) { $('sup-content').innerHTML = avisoSemFornecedores(); return; }
+    if (!S.catalogo) await carregarCatalogo();
+    var resumo = D.resumoFornecedores(S.catalogoRows, S.fornecedores);
+    var q = D.normalizarTexto(S.busca);
+    var lista = S.fornecedores.filter(function f(x) {
+      return !q || D.normalizarTexto([x.nome, x.cnpj, x.contato, x.email, x.telefone].join(' ')).includes(q);
+    });
+    $('sup-content').innerHTML = '<div class="sup-card"><div class="sup-card-head"><div class="sup-filters"><div class="sup-search"><i data-lucide="search" class="w-4 h-4"></i><input id="sup-busca" type="search" class="form-input" placeholder="Buscar fornecedor, CNPJ ou contato…" value="' + esc(S.busca) + '"></div></div>' +
+      '<div class="sup-actions"><button type="button" class="sup-btn sup-btn--primary" data-action="forn-novo"><i data-lucide="plus" class="w-4 h-4"></i><span>Novo fornecedor</span></button></div></div>' +
+      '<p class="sup-hint sup-hint--top">Cadastre cada fornecedor uma vez. Depois ligue os itens a ele em “Itens por fornecedor” ou no cadastro do item. Renomear o fornecedor aqui atualiza todos os itens dele.' +
+      (resumo.semFornecedor ? ' <b>' + resumo.semFornecedor + '</b>' + (resumo.semFornecedor === 1 ? ' item ainda está' : ' itens ainda estão') + ' sem fornecedor.' : '') + '</p>' +
+      '<div class="sup-table-scroll"><table class="sup-table sup-table--click"><thead><tr><th>Fornecedor</th><th>CNPJ/CPF</th><th>Contato</th><th>Telefone / E-mail</th><th class="sup-num">Itens</th><th class="sup-num">Lojas</th></tr></thead><tbody>' +
+      (lista.map(function row(x) {
+        var r = resumo.porFornecedor[x.id] || { itens: 0, lojas: 0 };
+        return '<tr data-forn="' + esc(x.id) + '"><td><b class="sup-strong">' + esc(x.nome) + '</b>' + (x.ativo === false ? ' <span class="sup-pill">inativo</span>' : '') + '</td><td class="sup-muted">' + esc(x.cnpj || '—') + '</td><td class="sup-muted">' + esc(x.contato || '—') + '</td>' +
+          '<td class="sup-muted">' + esc([x.telefone, x.email].filter(Boolean).join(' · ') || '—') + '</td><td class="sup-num">' + (r.itens || '<span class="sup-muted">0</span>') + '</td><td class="sup-num">' + r.lojas + '</td></tr>';
+      }).join('') || '<tr><td colspan="6" class="sup-empty">' + (S.fornecedores.length ? 'Nenhum fornecedor encontrado.' : 'Nenhum fornecedor cadastrado. Clique em “Novo fornecedor”.') + '</td></tr>') +
+      '</tbody></table></div><p class="sup-hint">' + lista.length + ' fornecedores</p></div>';
+  }
+
+  function modalFornecedor(f) {
+    var novo = !f;
+    f = f || { nome: '', cnpj: '', contato: '', telefone: '', email: '', observacao: '', ativo: true };
+    var itensDele = novo ? 0 : (D.resumoFornecedores(S.catalogoRows || [], S.fornecedores).porFornecedor[f.id] || { itens: 0 }).itens;
+    abrirModal(novo ? 'Novo fornecedor' : 'Editar fornecedor',
+      '<div class="sup-grid2"><label class="sup-field"><span>Nome do fornecedor *</span><input id="sup-fn-nome" class="form-input" maxlength="120" value="' + esc(f.nome) + '"></label>' +
+      '<label class="sup-field"><span>CNPJ / CPF</span><input id="sup-fn-cnpj" class="form-input" maxlength="20" inputmode="numeric" value="' + esc(f.cnpj || '') + '" placeholder="Somente números ou com pontuação"></label>' +
+      '<label class="sup-field"><span>Contato (pessoa)</span><input id="sup-fn-contato" class="form-input" maxlength="80" value="' + esc(f.contato || '') + '"></label>' +
+      '<label class="sup-field"><span>Telefone</span><input id="sup-fn-tel" class="form-input" maxlength="30" value="' + esc(f.telefone || '') + '"></label>' +
+      '<label class="sup-field"><span>E-mail</span><input id="sup-fn-email" class="form-input" maxlength="120" value="' + esc(f.email || '') + '"></label></div>' +
+      '<label class="sup-field"><span>Observação</span><textarea id="sup-fn-obs" class="form-input" rows="2" maxlength="500">' + esc(f.observacao || '') + '</textarea></label>' +
+      '<label class="sup-check"><input type="checkbox" id="sup-fn-ativo"' + (f.ativo !== false ? ' checked' : '') + '> Fornecedor ativo (aparece na escolha de fornecedor dos itens)</label>',
+      (novo ? '' : '<button type="button" class="sup-btn sup-btn--danger" id="sup-fn-del">Excluir</button>') + '<span class="sup-spacer"></span><button type="button" class="sup-btn" data-sup-close>Cancelar</button><button type="button" class="sup-btn sup-btn--primary" id="sup-fn-ok">' + (novo ? 'Cadastrar' : 'Salvar') + '</button>', true);
+    $('sup-fn-ok').addEventListener('click', async function salvar(ev) {
+      var b = ev.currentTarget;
+      var campos = D.normalizarFornecedor({ nome: $('sup-fn-nome').value, cnpj: $('sup-fn-cnpj').value, contato: $('sup-fn-contato').value, telefone: $('sup-fn-tel').value, email: $('sup-fn-email').value, observacao: $('sup-fn-obs').value, ativo: $('sup-fn-ativo').checked });
+      var erros = D.validarFornecedor(campos);
+      if (erros.length) return toast(erros[0]);
+      b.disabled = true;
+      try {
+        if (novo) await D.inserirFornecedor(S.sb, campos);
+        else await D.atualizarFornecedor(S.sb, f.id, campos);
+        await aposAlterarFornecedores(novo ? 'Fornecedor cadastrado.' : 'Fornecedor salvo.');
+      } catch (e) {
+        b.disabled = false;
+        erro(e, /duplicate|unique/i.test(e && e.message) ? 'Já existe um fornecedor com esse nome.' : null);
+      }
+    });
+    var del = $('sup-fn-del');
+    if (del) del.addEventListener('click', async function excluir(ev) {
+      var b = ev.currentTarget;
+      if (!b.dataset.confirm) {
+        b.dataset.confirm = '1';
+        b.textContent = itensDele ? 'Confirmar: ' + itensDele + ' itens ficam sem fornecedor' : 'Confirmar exclusão';
+        return;
+      }
+      b.disabled = true;
+      try {
+        await D.excluirFornecedor(S.sb, f.id);
+        if (S.fornecedorSel === f.id) S.fornecedorSel = '';
+        await aposAlterarFornecedores('Fornecedor excluído.');
+      } catch (e) { b.disabled = false; erro(e); }
+    });
+  }
+
+  async function aposAlterarFornecedores(msg) {
+    fecharModal();
+    toast(msg);
+    S.catalogo = null; // o nome do fornecedor nos itens pode ter mudado
+    await carregarFornecedores();
+    renderAba();
+  }
+
+  // ───────────── ADMIN: itens por fornecedor ─────────────
+  function linhasSelecionadas(grupos) {
+    var marcadas = Array.from(document.querySelectorAll('input[data-if-chk]:checked')).map(function c(cb) { return cb.getAttribute('data-if-chk'); });
+    return grupos.filter(function f(g) { return marcadas.indexOf(g.chave) !== -1; });
+  }
+
+  function itensDoFornecedorSelecionado() {
+    if (!S.fornecedorSel) return [];
+    var q = D.normalizarTexto(S.busca);
+    return D.itensDoFornecedor(S.catalogoRows, S.fornecedorSel === '__sem' ? '' : S.fornecedorSel).filter(function f(g) {
+      return !q || D.normalizarTexto(g.nome + ' ' + g.categoria).includes(q);
+    });
+  }
+
+  async function renderItensPorFornecedor() {
+    if (!S.fornecedoresOk) { $('sup-content').innerHTML = avisoSemFornecedores(); return; }
+    if (!S.catalogo) await carregarCatalogo();
+    var resumo = D.resumoFornecedores(S.catalogoRows, S.fornecedores);
+    var sel = S.fornecedorSel;
+    var real = sel && sel !== '__sem';
+    var lista = itensDoFornecedorSelecionado();
+    var opcoes = '<option value="">Escolher fornecedor…</option>' + S.fornecedores.map(function o(f) {
+      return '<option value="' + esc(f.id) + '"' + (f.id === sel ? ' selected' : '') + '>' + esc(f.nome) + ' · ' + (resumo.porFornecedor[f.id] || { itens: 0 }).itens + ' itens</option>';
+    }).join('') + '<option value="__sem"' + (sel === '__sem' ? ' selected' : '') + '>Sem fornecedor · ' + resumo.semFornecedor + ' itens</option>';
+    var corpo;
+    if (!sel) {
+      corpo = '<div class="sup-empty">Escolha um fornecedor acima para ver e organizar os itens dele.</div>';
+    } else {
+      corpo = '<div class="sup-table-scroll"><table class="sup-table"><thead><tr>' + (real ? '<th></th>' : '') + '<th>Item</th><th>Categoria</th><th class="sup-center">Und</th><th class="sup-num">Custo unit.</th><th class="sup-num">Ideal (mais comum)</th><th class="sup-num">Lojas</th></tr></thead><tbody>' +
+        (lista.map(function row(g) {
+          return '<tr>' + (real ? '<td><input type="checkbox" data-if-chk="' + esc(g.chave) + '" aria-label="Selecionar ' + esc(g.nome) + '"></td>' : '') + '<td class="sup-strong">' + esc(g.nome) + '</td><td class="sup-muted">' + esc(g.categoria) + '</td><td class="sup-center sup-muted">' + esc(g.unidade) + '</td><td class="sup-num">' + brl(g.custo) + '</td><td class="sup-num">' + num(g.ideal) + '</td><td class="sup-num">' + g.lojas.length + '</td></tr>';
+        }).join('') || '<tr><td colspan="7" class="sup-empty">' + (real ? 'Nenhum item neste fornecedor. Clique em “Adicionar itens”.' : 'Nenhum item encontrado.') + '</td></tr>') +
+        '</tbody></table></div><p class="sup-hint">' + lista.length + (lista.length === 1 ? ' item' : ' itens') + (sel === '__sem' ? ' sem fornecedor. Para ligar um item, abra o fornecedor e use “Adicionar itens”.' : '') + '</p>';
+    }
+    $('sup-content').innerHTML = '<div class="sup-card"><div class="sup-card-head"><div class="sup-filters"><select id="sup-if-select" class="form-select sup-control" aria-label="Fornecedor">' + opcoes + '</select>' +
+      (sel ? '<div class="sup-search"><i data-lucide="search" class="w-4 h-4"></i><input id="sup-busca" type="search" class="form-input" placeholder="Buscar item…" value="' + esc(S.busca) + '"></div>' : '') + '</div>' +
+      '<div class="sup-actions">' + (real ? '<button type="button" class="sup-btn" data-action="if-remover"><i data-lucide="unlink" class="w-4 h-4"></i><span>Remover selecionados</span></button><button type="button" class="sup-btn sup-btn--primary" data-action="if-adicionar"><i data-lucide="plus" class="w-4 h-4"></i><span>Adicionar itens</span></button>' : '') + '</div></div>' + corpo + '</div>';
+  }
+
+  function adicionarItensAoFornecedor() {
+    var forn = S.fornecedores.find(function f(x) { return x.id === S.fornecedorSel; });
+    if (!forn) return;
+    // Itens que ainda não são deste fornecedor (em alguma loja), com o fornecedor atual de cada um.
+    var candidatos = S.catalogo.filter(function f(g) {
+      return g.linhas.some(function r(l) { return l.fornecedor_id !== forn.id; });
+    });
+    var modal = abrirModal('Adicionar itens · ' + forn.nome,
+      '<div class="sup-search"><i data-lucide="search" class="w-4 h-4"></i><input id="sup-ai-busca" type="search" class="form-input" placeholder="Buscar item…"></div>' +
+      '<div class="sup-table-scroll sup-table-scroll--modal"><table class="sup-table"><thead><tr><th></th><th>Item</th><th>Categoria</th><th>Fornecedor atual</th></tr></thead><tbody>' +
+      (candidatos.map(function row(g) {
+        return '<tr data-ai-row data-texto="' + esc(D.normalizarTexto(g.nome + ' ' + g.categoria)) + '"><td><input type="checkbox" data-ai-chk="' + esc(g.chave) + '" aria-label="Selecionar ' + esc(g.nome) + '"></td><td class="sup-strong">' + esc(g.nome) + '</td><td class="sup-muted">' + esc(g.categoria) + '</td><td class="sup-muted">' + esc(g.fornecedor || '—') + '</td></tr>';
+      }).join('') || '<tr><td colspan="4" class="sup-empty">Todos os itens já são deste fornecedor.</td></tr>') +
+      '</tbody></table></div><p class="sup-hint">O item passa a ser deste fornecedor em todas as lojas em que existe. Quem já tinha outro fornecedor é movido.</p>',
+      '<button type="button" class="sup-btn" data-sup-close>Cancelar</button><button type="button" class="sup-btn sup-btn--primary" id="sup-ai-ok" disabled>Adicionar</button>', true);
+    var botao = $('sup-ai-ok');
+    var marcados = function marcados() { return Array.from(modal.querySelectorAll('input[data-ai-chk]:checked')); };
+    var atualizar = function atualizar() {
+      var n = marcados().length;
+      botao.disabled = !n;
+      botao.textContent = n ? 'Adicionar ' + n + (n === 1 ? ' item' : ' itens') : 'Adicionar';
+    };
+    modal.addEventListener('change', atualizar);
+    $('sup-ai-busca').addEventListener('input', function filtrar(ev) {
+      var q = D.normalizarTexto(ev.target.value);
+      modal.querySelectorAll('tr[data-ai-row]').forEach(function r(tr) { tr.style.display = tr.getAttribute('data-texto').indexOf(q) !== -1 ? '' : 'none'; });
+    });
+    botao.addEventListener('click', async function adicionar() {
+      var chaves = marcados().map(function c(cb) { return cb.getAttribute('data-ai-chk'); });
+      var ids = [];
+      S.catalogo.filter(function f(g) { return chaves.indexOf(g.chave) !== -1; }).forEach(function g(grupo) {
+        grupo.linhas.forEach(function l(r) { if (r.fornecedor_id !== forn.id) ids.push(r.id); });
+      });
+      botao.disabled = true;
+      try {
+        await D.atribuirFornecedor(S.sb, ids, forn);
+        fecharModal();
+        toast(chaves.length + (chaves.length === 1 ? ' item ligado a ' : ' itens ligados a ') + forn.nome + '.');
+        S.catalogo = null;
+        renderAba();
+      } catch (e) { botao.disabled = false; erro(e); }
+    });
+  }
+
+  async function removerItensDoFornecedor() {
+    var grupos = linhasSelecionadas(itensDoFornecedorSelecionado());
+    if (!grupos.length) return toast('Marque os itens que deixam de ser deste fornecedor.');
+    var ids = [];
+    grupos.forEach(function g(grupo) { grupo.linhas.forEach(function l(r) { ids.push(r.id); }); });
+    try {
+      await D.atribuirFornecedor(S.sb, ids, null);
+      toast(grupos.length + (grupos.length === 1 ? ' item ficou sem fornecedor.' : ' itens ficaram sem fornecedor.'));
+      S.catalogo = null;
+      renderAba();
+    } catch (e) { erro(e); }
+  }
+
   // ───────────── ADMIN: lojas ─────────────
   async function carregarResumo() {
     var res = await Promise.all([D.listarTodosItens(S.sb), D.listarContagens(S.sb), D.listarSolicitacoes(S.sb, null)]);
@@ -944,7 +1160,7 @@
     var it = S.itens.find(function f(i) { return i.id === id; });
     if (!it) return;
     abrirModal('Editar item · ' + lojaNome(it.store_id),
-      camposItem({ nome: it.nome, categoria: it.categoria, unidade: it.unidade, custo: it.custo_unitario, fornecedor: it.fornecedor, ideal: it.estoque_ideal }, true) +
+      camposItem({ nome: it.nome, categoria: it.categoria, unidade: it.unidade, custo: it.custo_unitario, fornecedor: it.fornecedor, fornecedor_id: it.fornecedor_id, ideal: it.estoque_ideal }, true) +
       '<label class="sup-check"><input type="checkbox" id="sup-it-ativo"' + (it.ativo !== false ? ' checked' : '') + '> Item ativo (aparece na contagem da loja)</label>',
       '<button type="button" class="sup-btn sup-btn--danger" id="sup-it-del">Excluir</button><span class="sup-spacer"></span><button type="button" class="sup-btn" data-sup-close>Cancelar</button><button type="button" class="sup-btn sup-btn--primary" id="sup-it-ok">Salvar</button>');
     $('sup-it-ok').addEventListener('click', async function salvar(ev) {
@@ -1035,6 +1251,8 @@
       var g = S.catalogo.find(function f(x) { return x.chave === grupo.dataset.grupo; });
       if (g) return editarItemCatalogo(g);
     }
+    var fn = t.closest('tr[data-forn]');
+    if (fn) return modalFornecedor(S.fornecedores.find(function f(x) { return x.id === fn.dataset.forn; }));
     var lj = t.closest('tr[data-loja]');
     if (lj) return abrirLojaDetalhe(lj.dataset.loja);
     var it = t.closest('tr[data-item]');
@@ -1046,6 +1264,9 @@
     if (a === 'novo-pedido-loja') return irParaAba('contagem');
     if (a === 'voltar-pedidos') return irParaAba('solicitacoes');
     if (a === 'consolidado') return copiarConsolidado();
+    if (a === 'forn-novo') return modalFornecedor(null);
+    if (a === 'if-adicionar') return adicionarItensAoFornecedor();
+    if (a === 'if-remover') return removerItensDoFornecedor();
     if (a === 'item-novo') return novoItemCatalogo(null);
     if (a === 'item-novo-loja') return novoItemCatalogo(S.lojaDetalhe);
     if (a === 'catalogo-excel') return copiarCatalogo();
@@ -1076,6 +1297,12 @@
   }
 
   function onContentChange(ev) {
+    if (ev.target.id === 'sup-if-select') {
+      S.fornecedorSel = ev.target.value;
+      S.busca = '';
+      renderAba();
+      return;
+    }
     if (ev.target.id === 'sup-filtro-loja') {
       S.filtroLoja = ev.target.value;
       renderAba();

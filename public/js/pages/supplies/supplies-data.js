@@ -99,12 +99,76 @@
         custoMin: custos.length ? Math.min.apply(null, custos) : null,
         custoMax: custos.length ? Math.max.apply(null, custos) : null,
         fornecedor: moda(rows.map(function f(r) { return r.fornecedor; })),
+        fornecedor_id: moda(rows.map(function f(r) { return r.fornecedor_id; })),
         ideal: moda(rows.map(function i(r) { return Number(r.estoque_ideal); })),
         lojas: Object.keys(lojas).map(Number),
       };
     }).sort(function sortGroups(a, b) {
       return String(a.categoria).localeCompare(String(b.categoria), 'pt-BR') || String(a.nome).localeCompare(String(b.nome), 'pt-BR');
     });
+  }
+
+  // ───────────── Fornecedores ─────────────
+  function somenteDigitos(texto) { return String(texto || '').replace(/\D/g, ''); }
+
+  function formatarDocumento(texto) {
+    var d = somenteDigitos(texto);
+    if (d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+    if (d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+    return String(texto || '').trim();
+  }
+
+  // Limpa os campos do formulário de fornecedor para gravar no banco.
+  function normalizarFornecedor(campos) {
+    var vazioNulo = function vazioNulo(v) { var t = String(v || '').trim(); return t ? t : null; };
+    return {
+      nome: String(campos.nome || '').trim(),
+      cnpj: vazioNulo(campos.cnpj) ? formatarDocumento(campos.cnpj) : null,
+      contato: vazioNulo(campos.contato),
+      telefone: vazioNulo(campos.telefone),
+      email: vazioNulo(campos.email) ? String(campos.email).trim().toLowerCase() : null,
+      observacao: vazioNulo(campos.observacao),
+      ativo: campos.ativo !== false,
+    };
+  }
+
+  // Devolve a lista de problemas (vazia = pode gravar).
+  function validarFornecedor(f) {
+    var erros = [];
+    if (!f.nome) erros.push('Informe o nome do fornecedor.');
+    var d = somenteDigitos(f.cnpj);
+    if (f.cnpj && d.length !== 14 && d.length !== 11) erros.push('CNPJ/CPF inválido: informe 14 (CNPJ) ou 11 (CPF) dígitos.');
+    if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) erros.push('E-mail inválido.');
+    return erros;
+  }
+
+  // Itens (agrupados pelo nome, como no cadastro de itens) de um fornecedor.
+  // fornecedorId vazio = itens sem fornecedor.
+  function itensDoFornecedor(linhas, fornecedorId) {
+    return agruparCatalogo((linhas || []).filter(function byForn(r) {
+      return fornecedorId ? r.fornecedor_id === fornecedorId : !r.fornecedor_id;
+    }));
+  }
+
+  // Quantos itens (nomes distintos) e lojas cada fornecedor atende, mais os itens sem fornecedor.
+  function resumoFornecedores(linhas, fornecedores) {
+    var resumo = {};
+    (fornecedores || []).forEach(function init(f) { resumo[f.id] = { itens: {}, lojas: {} }; });
+    var sem = {};
+    (linhas || []).forEach(function eachRow(r) {
+      var chave = normalizarTexto(r.nome);
+      if (r.fornecedor_id && resumo[r.fornecedor_id]) {
+        resumo[r.fornecedor_id].itens[chave] = true;
+        resumo[r.fornecedor_id].lojas[r.store_id] = true;
+      } else if (!r.fornecedor_id) {
+        sem[chave] = true;
+      }
+    });
+    var saida = { semFornecedor: Object.keys(sem).length, porFornecedor: {} };
+    Object.keys(resumo).forEach(function out(id) {
+      saida.porFornecedor[id] = { itens: Object.keys(resumo[id].itens).length, lojas: Object.keys(resumo[id].lojas).length };
+    });
+    return saida;
   }
 
   // Separa os itens de uma solicitação por fornecedor (um pedido/PDF para cada).
@@ -241,6 +305,32 @@
     return mapa;
   }
 
+  async function listarFornecedores(sb) {
+    return check(await sb.from('sup_fornecedores').select('*').order('nome')) || [];
+  }
+
+  async function inserirFornecedor(sb, campos) {
+    var linhas = check(await sb.from('sup_fornecedores').insert(campos).select());
+    return linhas && linhas[0];
+  }
+
+  async function atualizarFornecedor(sb, id, campos) {
+    return check(await sb.from('sup_fornecedores').update(campos).eq('id', id).select());
+  }
+
+  async function excluirFornecedor(sb, id) {
+    return check(await sb.from('sup_fornecedores').delete().eq('id', id));
+  }
+
+  // Liga (ou, com fornecedor nulo, desliga) vários itens de um fornecedor. Em lotes, por causa do tamanho da URL.
+  async function atribuirFornecedor(sb, ids, fornecedor) {
+    var alteracao = { fornecedor_id: fornecedor ? fornecedor.id : null, fornecedor: fornecedor ? fornecedor.nome : null };
+    for (var inicio = 0; inicio < ids.length; inicio += 80) {
+      check(await sb.from('sup_itens').update(alteracao).in('id', ids.slice(inicio, inicio + 80)).select('id'));
+    }
+    return ids.length;
+  }
+
   async function inserirItens(sb, itens) {
     if (!itens.length) return [];
     return check(await sb.from('sup_itens').insert(itens).select());
@@ -258,8 +348,18 @@
 
   global.SuppliesDataModule = {
     agruparCatalogo: agruparCatalogo,
+    atribuirFornecedor: atribuirFornecedor,
+    atualizarFornecedor: atualizarFornecedor,
     atualizarItens: atualizarItens,
     calcularLinha: calcularLinha,
+    excluirFornecedor: excluirFornecedor,
+    formatarDocumento: formatarDocumento,
+    inserirFornecedor: inserirFornecedor,
+    itensDoFornecedor: itensDoFornecedor,
+    listarFornecedores: listarFornecedores,
+    normalizarFornecedor: normalizarFornecedor,
+    resumoFornecedores: resumoFornecedores,
+    validarFornecedor: validarFornecedor,
     carregarContagem: carregarContagem,
     enviarSolicitacao: enviarSolicitacao,
     excluirItens: excluirItens,
