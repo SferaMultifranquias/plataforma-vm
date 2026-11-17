@@ -98,7 +98,7 @@
     if (S.admin) {
       return [
         { key: 'solicitacoes', label: 'Solicitações das lojas', icon: 'inbox' },
-        { key: 'contagem', label: 'Pedido por loja', icon: 'clipboard-list' },
+        { key: 'contagem', label: 'Novo pedido por loja', icon: 'clipboard-list', oculta: true },
         { key: 'itens', label: 'Cadastro de itens', icon: 'list' },
         { key: 'lojas', label: 'Lojas', icon: 'store' },
       ];
@@ -110,7 +110,7 @@
   }
 
   function renderTabs() {
-    $('sup-tabs').innerHTML = abasDisponiveis().map(function tab(a) {
+    $('sup-tabs').innerHTML = abasDisponiveis().filter(function visivel(a) { return !a.oculta; }).map(function tab(a) {
       return '<button type="button" class="sup-tab' + (S.aba === a.key ? ' is-active' : '') + '" data-tab="' + a.key + '"><i data-lucide="' + a.icon + '" class="w-4 h-4"></i><span>' + esc(a.label) + '</span></button>';
     }).join('');
     // Admin só vê o seletor de loja na aba "Pedido por loja".
@@ -124,6 +124,18 @@
       window.history.replaceState({}, '', '/suprimentos?aba=' + encodeURIComponent(S.aba));
       window.dispatchEvent(new Event('sup:aba'));
     } catch (e) { /* sem URL/menu sincronizado: a aba continua funcionando */ }
+  }
+
+  // Troca de aba por botão dentro da tela (sem passar pela barra de abas).
+  async function irParaAba(chave) {
+    if (S.dirty) await salvarContagemAgora();
+    S.aba = chave;
+    S.busca = '';
+    S.lojaDetalhe = null;
+    sincronizarUrl();
+    if (S.admin && chave === 'contagem' && S.lojaId) await carregarLoja();
+    renderTabs();
+    renderAba();
   }
 
   function montarSeletorLoja() {
@@ -174,7 +186,7 @@
     el.innerHTML = '<div class="sup-empty">Carregando…</div>';
     try {
       if (S.aba === 'contagem') {
-        if (S.admin && !S.lojaId) el.innerHTML = '<div class="sup-card"><div class="sup-empty">Escolha a loja no campo “Loja” acima para fazer o pedido de suprimentos por ela.</div></div>';
+        if (S.admin && !S.lojaId) el.innerHTML = '<div class="sup-card"><div class="sup-empty">Escolha a loja no campo “Loja” acima para fazer o pedido de suprimentos por ela.</div><div class="sup-actions"><button type="button" class="sup-btn" data-action="voltar-pedidos"><i data-lucide="arrow-left" class="w-4 h-4"></i><span>Voltar aos pedidos</span></button></div></div>';
         else renderContagem();
       }
       else if (S.aba === 'minhas') renderMinhas();
@@ -290,7 +302,7 @@
     $('sup-content').innerHTML = kpisContagem() +
       '<div class="sup-card">' +
         '<div class="sup-card-head">' + filtrosItens() +
-          '<div class="sup-actions"><button type="button" class="sup-btn sup-btn--primary" data-action="abrir-envio"><i data-lucide="send" class="w-4 h-4"></i><span>Enviar pedido</span></button></div></div>' +
+          '<div class="sup-actions">' + (S.admin ? '<button type="button" class="sup-btn" data-action="voltar-pedidos"><i data-lucide="arrow-left" class="w-4 h-4"></i><span>Voltar aos pedidos</span></button>' : '') + '<button type="button" class="sup-btn sup-btn--primary" data-action="abrir-envio"><i data-lucide="send" class="w-4 h-4"></i><span>Enviar pedido</span></button></div></div>' +
         (S.itens.length ? '' : '<div class="sup-empty">' + (S.admin ? 'Esta loja ainda não tem lista de itens. Cadastre em “Lojas” (colar lista do Excel ou copiar de outra loja).' : 'A Sfera ainda não cadastrou a lista de itens desta loja.') + '</div>') +
         '<div class="sup-table-scroll"><table class="sup-table"><thead><tr><th>Item</th><th>Categoria</th><th class="sup-center">Und</th><th class="sup-num">Quantidade a pedir</th><th class="sup-num">Custo unit.</th><th class="sup-num">Valor total</th></tr></thead>' +
         '<tbody>' + (lista.map(function l(i) { return linhaContagem(i); }).join('') || (S.itens.length ? '<tr><td colspan="6" class="sup-empty">Nenhum item encontrado.</td></tr>' : '')) + '</tbody></table></div>' +
@@ -408,7 +420,7 @@
       filtros.map(function f(x) { return '<button type="button" class="sup-chip' + (S.filtroStatus === x[0] ? ' is-active' : '') + '" data-status="' + x[0] + '">' + x[1] + ' · ' + (x[0] === 'todas' ? S.sols.length : cont[x[0]] || 0) + '</button>'; }).join('') +
       '</div><div class="sup-actions"><select id="sup-filtro-loja" class="form-select sup-control"><option value="">Todas as lojas</option>' +
       S.lojas.map(function o(l) { return '<option value="' + esc(l.id) + '"' + (String(l.id) === S.filtroLoja ? ' selected' : '') + '>' + esc(l.nome) + '</option>'; }).join('') +
-      '</select><button type="button" class="sup-btn" data-action="consolidado"><i data-lucide="copy" class="w-4 h-4"></i><span>Copiar consolidado</span></button></div></div>' +
+      '</select><button type="button" class="sup-btn sup-btn--primary" data-action="novo-pedido-loja"><i data-lucide="plus" class="w-4 h-4"></i><span>Novo pedido</span></button><button type="button" class="sup-btn" data-action="consolidado"><i data-lucide="copy" class="w-4 h-4"></i><span>Copiar consolidado</span></button></div></div>' +
       listaSolicitacoes(lista, true) + '</div>';
   }
 
@@ -963,6 +975,8 @@
     if (!act) return;
     var a = act.dataset.action;
     if (a === 'abrir-envio') return abrirEnvio();
+    if (a === 'novo-pedido-loja') return irParaAba('contagem');
+    if (a === 'voltar-pedidos') return irParaAba('solicitacoes');
     if (a === 'consolidado') return copiarConsolidado();
     if (a === 'item-novo') return novoItemCatalogo(null);
     if (a === 'item-novo-loja') return novoItemCatalogo(S.lojaDetalhe);

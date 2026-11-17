@@ -595,7 +595,8 @@
       var active = linkPath === normalized;
       var supAba = link.getAttribute('data-sup-aba');
       if (active && supAba) {
-        active = searchAba ? searchAba === supAba : link.hasAttribute('data-sup-default');
+        var abasDoItem = [supAba].concat((link.getAttribute('data-sup-abas-extra') || '').split(' '));
+        active = searchAba ? abasDoItem.indexOf(searchAba) !== -1 : link.hasAttribute('data-sup-default');
       }
       link.classList.toggle('bg-blue-600', active);
       link.classList.toggle('text-white', active);
