@@ -82,7 +82,7 @@ app.use(express.static(PUBLIC_DIR, {
   },
 }));
 
-app.get(['/dashboard', '/login', '/pedidos', '/novo-pedido', '/lojas', '/usuarios', '/estoque', '/suprimentos'], (req, res) => {
+app.get(['/dashboard', '/login', '/pedidos', '/novo-pedido', '/lojas', '/usuarios', '/estoque', '/suprimentos', '/dashboard-suprimentos'], (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });

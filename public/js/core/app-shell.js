@@ -382,6 +382,29 @@
         },
       },
       {
+        path: '/dashboard-suprimentos',
+        key: 'dashboard-suprimentos',
+        resource: 'suprimentos',
+        title: 'Dashboard Suprimentos',
+        subtitle: 'Acompanhamento das solicitações de suprimentos.',
+        template: '/pages/dashboard-suprimentos.html',
+        init: function initDashboardSuprimentos(deps) {
+          if (!global.SuppliesDashboardModule || typeof global.SuppliesDashboardModule.afterRenderDashboardSuprimentos !== 'function') return Promise.resolve();
+          return global.SuppliesDashboardModule.afterRenderDashboardSuprimentos({
+            getCurrentUser: deps.getCurrentUser,
+            getSb: deps.getSb,
+            navigateTo: deps.navigateTo,
+            showToast: deps.showToast,
+          });
+        },
+        destroy: function destroyDashboardSuprimentos() {
+          if (global.SuppliesDashboardModule && typeof global.SuppliesDashboardModule.beforeLeave === 'function') {
+            return global.SuppliesDashboardModule.beforeLeave();
+          }
+          return Promise.resolve();
+        },
+      },
+      {
         path: '/estoque',
         key: 'estoque',
         resource: 'stock-checks-read',
@@ -583,12 +606,12 @@
     // O botão "Novo Pedido" do cabeçalho é do VM: não aparece dentro de Suprimentos.
     var headerNovoPedido = document.getElementById('header-novo-pedido');
     if (headerNovoPedido && headerNovoPedido.classList) {
-      headerNovoPedido.classList.toggle('hidden', normalized === '/suprimentos');
+      headerNovoPedido.classList.toggle('hidden', normalized === '/suprimentos' || normalized === '/dashboard-suprimentos');
     }
     // Em Suprimentos a loja faz o pedido ali mesmo (contagem + enviar), não no formulário do VM.
     var headerNovoPedidoSup = document.getElementById('header-novo-pedido-sup');
     if (headerNovoPedidoSup && headerNovoPedidoSup.classList) {
-      headerNovoPedidoSup.classList.toggle('hidden', normalized !== '/suprimentos');
+      headerNovoPedidoSup.classList.toggle('hidden', normalized !== '/suprimentos' && normalized !== '/dashboard-suprimentos');
     }
     document.querySelectorAll('a[data-route].nav-item').forEach(function updateLink(link) {
       var linkPath = link.getAttribute('data-route');
