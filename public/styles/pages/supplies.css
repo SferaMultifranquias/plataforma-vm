@@ -152,7 +152,10 @@
 .sup-warn { color: #b45309; }
 .sup-ellipsis { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sup-item-name { font-weight: 500; }
-.sup-qty { width: 90px; height: 34px; text-align: right; border-radius: 8px; padding: 0 8px; }
+.sup-qty { width: 96px; height: 36px; text-align: right; border-radius: 8px; padding: 0 10px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 14px; font-weight: 500; transition: border-color .15s, box-shadow .15s; }
+.sup-qty::placeholder { color: #94a3b8; font-weight: 400; }
+.sup-qty:hover { border-color: #94a3b8; }
+.sup-qty:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
 .sup-hint { font-size: 12.5px; color: #64748b; margin-top: 12px; }
 .sup-hint--top { margin: -4px 0 12px; }
 .sup-empty { padding: 28px; text-align: center; color: #64748b; }

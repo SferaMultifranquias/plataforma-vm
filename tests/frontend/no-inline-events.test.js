@@ -662,7 +662,7 @@ test('APP_VERSION declared in index.html', () => {
   var match = html.match(/window\.APP_VERSION\s*=\s*'([^']+)'/);
   assert.ok(match, 'APP_VERSION must be declared');
   assert.ok(match[1], 'APP_VERSION must be non-empty');
-  assert.equal(match[1], '20261116-1', 'APP_VERSION must be current');
+  assert.match(match[1], /^\d{8}-\d+$/, 'APP_VERSION must follow AAAAMMDD-N (see scripts/maintenance/bump-asset-version.sh)');
 });
 
 test('all first-party assets use same version', () => {

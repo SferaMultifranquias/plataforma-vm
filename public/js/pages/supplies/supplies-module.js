@@ -60,6 +60,8 @@
       lojaDetalhe: null,
     };
     bindShell();
+    var botaoNovoPedido = document.getElementById('header-novo-pedido-sup');
+    if (botaoNovoPedido) on(botaoNovoPedido, 'click', onNovoPedidoClick);
     try {
       S.lojas = await D.listarLojas(sb, usuario);
     } catch (e) {
@@ -275,7 +277,7 @@
       '<td class="sup-muted">' + esc(i.categoria) + '</td>' +
       '<td class="sup-muted sup-center">' + esc(i.unidade) + '</td>' +
       (mostrarIdeal ? '<td class="sup-num">' + num(i.estoque_ideal) + '</td>' : '') +
-      '<td class="sup-num"><input class="form-input sup-qty" inputmode="decimal" data-fisico="' + esc(i.id) + '" value="' + esc(decimalBR(valorFisico(i.id))) + '" placeholder="—" aria-label="Quantidade em estoque de ' + esc(i.nome) + '"></td>' +
+      '<td class="sup-num"><input class="form-input sup-qty" inputmode="decimal" data-fisico="' + esc(i.id) + '" value="' + esc(decimalBR(valorFisico(i.id))) + '" placeholder="0" aria-label="Quantidade em estoque de' + esc(i.nome) + '"></td>' +
       (mostrarIdeal
         ? '<td class="sup-num" data-cell="compra">' + (c.contado ? (c.compra > 0 ? '<b>' + num(c.compra) + '</b>' : '<span class="sup-ok">ok</span>') : '<span class="sup-muted">—</span>') + '</td>' +
           '<td class="sup-num">' + brl(c.custo) + '</td>' +
@@ -400,6 +402,51 @@
         erro(e, 'Não foi possível enviar a solicitação.');
       }
     });
+  }
+
+  // ───────────── Botão "+ Novo pedido de suprimentos" (cabeçalho) ─────────────
+  // Fora da tela de pedido, só abre a tela. Dentro dela, começa um pedido do zero
+  // (apaga a contagem salva), pedindo confirmação se já houver algo preenchido.
+  async function onNovoPedidoClick(ev) {
+    ev.preventDefault();
+    if (S.aba !== 'contagem') return irParaAba('contagem');
+    if (!S.lojaId) {
+      toast(S.admin ? 'Escolha a loja no campo “Loja” para começar um novo pedido.' : 'Seu usuário ainda não está ligado a nenhuma loja.');
+      return;
+    }
+    var preenchidos = Object.keys(valoresAtuais()).length;
+    if (!preenchidos) {
+      toast('O pedido já está em branco. Preencha a quantidade em estoque.');
+      return;
+    }
+    abrirModal('Começar um novo pedido?',
+      '<p>Há <b>' + preenchidos + '</b> ' + (preenchidos === 1 ? 'item preenchido' : 'itens preenchidos') + ' neste pedido. Ao começar um novo, as quantidades informadas serão <b>apagadas</b> e a contagem salva será zerada.</p>',
+      '<button type="button" class="sup-btn" data-sup-close>Cancelar</button><button type="button" class="sup-btn sup-btn--primary" id="sup-novo-ok">Apagar e começar novo</button>');
+    $('sup-novo-ok').addEventListener('click', async function confirmar(e) {
+      var b = e.currentTarget;
+      b.disabled = true;
+      if (await iniciarNovoPedido()) fecharModal();
+      else b.disabled = false;
+    });
+  }
+
+  async function iniciarNovoPedido() {
+    if (S.saveTimer) { clearTimeout(S.saveTimer); S.saveTimer = null; }
+    try {
+      await D.salvarContagem(S.sb, S.lojaId, {});
+    } catch (e) {
+      erro(e, 'Não foi possível começar o novo pedido. Verifique a internet.');
+      return false;
+    }
+    S.local = {};
+    S.dirty = false;
+    S.contagem = { store_id: S.lojaId, valores: {}, atualizado_em: null };
+    S.busca = '';
+    S.categoria = 'Todas';
+    renderContagem();
+    icons();
+    toast('Novo pedido iniciado. Preencha a quantidade em estoque.');
+    return true;
   }
 
   // ───────────── LOJA: minhas solicitações ─────────────

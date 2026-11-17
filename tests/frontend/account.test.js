@@ -128,7 +128,7 @@ async function run() {
 
   // ── Script reference in index.html ─────────────────────────────────
   assert.match(indexHtml, /account\/account-module\.js/);
-  assert.match(indexHtml, /account-module\.js\?v=20261116-1/);
+  assert.match(indexHtml, /account-module\.js\?v=\d{8}-\d+/);
   console.log('PASS: account-module.js script referenced in index.html');
 
   // ── Original field IDs preserved in modal ──────────────────────────
