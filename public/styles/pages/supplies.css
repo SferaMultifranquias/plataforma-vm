@@ -161,6 +161,7 @@
 .sup-empty { padding: 28px; text-align: center; color: #64748b; }
 .sup-spacer { flex: 1; }
 .sup-title-row { display: flex; align-items: center; gap: 12px; }
+.sup-nowrap { white-space: nowrap; }
 .sup-h3 { font-size: 17px; font-weight: 700; color: #0f172a; }
 .sup-h4 { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 10px; }
 .sup-subcard { margin-top: 20px; }

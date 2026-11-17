@@ -270,14 +270,24 @@
     return todos;
   }
 
+  var COLUNAS_LOJA = 'id,codigo,nome,marca,ativo,usa_vm,centro_custo';
+  var COLUNAS_LOJA_COMPLETAS = COLUNAS_LOJA + ',cnpj,endereco,cep';
+
+  // CNPJ, endereço e CEP são colunas novas: se o banco ainda não as tem, busca sem elas.
+  async function consultarLojas(sb, montar) {
+    var r = await montar(COLUNAS_LOJA_COMPLETAS);
+    if (r && r.error && /cnpj|endereco|cep|column/i.test(r.error.message || '')) r = await montar(COLUNAS_LOJA);
+    return check(r) || [];
+  }
+
   async function listarLojas(sb, usuario) {
     if (usuario && usuario.papel === 'admin') {
-      return check(await sb.from('lojas').select('id,codigo,nome,marca,ativo,usa_vm,centro_custo').eq('ativo', true).order('nome')) || [];
+      return consultarLojas(sb, function q(colunas) { return sb.from('lojas').select(colunas).eq('ativo', true).order('nome'); });
     }
     var vinculos = check(await sb.from('user_stores').select('store_id').eq('user_id', usuario.id)) || [];
     var ids = vinculos.map(function id(v) { return v.store_id; });
     if (!ids.length) return [];
-    return check(await sb.from('lojas').select('id,codigo,nome,marca,ativo,usa_vm,centro_custo').in('id', ids).eq('ativo', true).order('nome')) || [];
+    return consultarLojas(sb, function q(colunas) { return sb.from('lojas').select(colunas).in('id', ids).eq('ativo', true).order('nome'); });
   }
 
   async function listarItensDaLoja(sb, storeId) {

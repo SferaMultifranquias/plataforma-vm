@@ -1143,14 +1143,14 @@
     if (!S.resumo) await carregarResumo();
     var R = S.resumo;
     var q = D.normalizarTexto(S.busca);
-    var lista = S.lojas.filter(function f(l) { return !q || D.normalizarTexto(l.nome + ' ' + (l.codigo || '') + ' ' + (l.marca || '')).includes(q); });
+    var lista = S.lojas.filter(function f(l) { return !q || D.normalizarTexto(l.nome + ' ' + (l.codigo || '') + ' ' + (l.marca || '') + ' ' + (l.cnpj || '') + ' ' + (l.endereco || '')).includes(q); });
     var semLista = S.lojas.filter(function f(l) { return !(R[l.id] || {}).itens; }).length;
-    $('sup-content').innerHTML = '<div class="sup-card"><div class="sup-card-head"><div class="sup-filters"><div class="sup-search"><i data-lucide="search" class="w-4 h-4"></i><input id="sup-busca" type="search" class="form-input" placeholder="Buscar loja, código ou marca…" value="' + esc(S.busca) + '"></div></div>' +
+    $('sup-content').innerHTML = '<div class="sup-card"><div class="sup-card-head"><div class="sup-filters"><div class="sup-search"><i data-lucide="search" class="w-4 h-4"></i><input id="sup-busca" type="search" class="form-input" placeholder="Buscar loja, código, marca, CNPJ ou endereço…" value="' + esc(S.busca) + '"></div></div>' +
       '<div class="sup-actions"><span class="sup-muted">' + (semLista ? semLista + ' lojas sem lista de itens' : 'Todas as lojas têm lista') + '</span><button type="button" class="sup-btn" data-action="atualizar-lojas"><i data-lucide="refresh-cw" class="w-4 h-4"></i><span>Atualizar</span></button></div></div>' +
-      '<div class="sup-table-scroll"><table class="sup-table sup-table--click"><thead><tr><th>Loja</th><th>Marca</th><th>Acesso</th><th class="sup-num">Itens</th><th>Última contagem</th><th class="sup-num">Contados</th><th class="sup-num">Compra necessária</th><th class="sup-num">Pendentes</th></tr></thead><tbody>' +
+      '<div class="sup-table-scroll"><table class="sup-table sup-table--click"><thead><tr><th>Loja</th><th>Marca</th><th>CNPJ</th><th>Endereço</th><th>Acesso</th><th class="sup-num">Itens</th><th>Última contagem</th><th class="sup-num">Contados</th><th class="sup-num">Compra necessária</th><th class="sup-num">Pendentes</th></tr></thead><tbody>' +
       lista.map(function row(l) {
         var r = R[l.id] || {};
-        return '<tr data-loja="' + esc(l.id) + '"><td><b class="sup-strong">' + esc(l.nome) + '</b> <span class="sup-muted sup-small">' + esc(l.codigo || '') + '</span></td><td class="sup-muted">' + esc(l.marca || '') + '</td><td>' + (l.usa_vm === false ? '<span class="sup-pill sup-pill--info">Só Suprimentos</span>' : '<span class="sup-muted sup-small">VM + Suprimentos</span>') + '</td>' +
+        return '<tr data-loja="' + esc(l.id) + '"><td><b class="sup-strong">' + esc(l.nome) + '</b> <span class="sup-muted sup-small">' + esc(l.codigo || '') + '</span></td><td class="sup-muted">' + esc(l.marca || '') + '</td><td class="sup-muted sup-nowrap">' + esc(l.cnpj || '—') + '</td><td class="sup-muted">' + esc(l.endereco || '—') + (l.cep ? ' <span class="sup-small">· CEP ' + esc(l.cep) + '</span>' : '') + '</td><td>' + (l.usa_vm === false ? '<span class="sup-pill sup-pill--info">Só Suprimentos</span>' : '<span class="sup-muted sup-small">VM + Suprimentos</span>') + '</td>' +
           '<td class="sup-num">' + (r.itens ? r.itens : '<span class="sup-pill sup-pill--warn">sem lista</span>') + '</td><td>' + (r.ult ? dataHora(r.ult) : '<span class="sup-muted">nunca</span>') + '</td><td class="sup-num">' + (r.itens ? r.contados + '/' + r.itens : '—') + '</td><td class="sup-num">' + (r.compra ? brl(r.compra) : '—') + '</td><td class="sup-num">' + (r.pend ? '<span class="sup-pill sup-pill--warn">' + r.pend + '</span>' : '') + '</td></tr>';
       }).join('') + '</tbody></table></div></div>';
   }
@@ -1164,13 +1164,20 @@
     renderAba();
   }
 
+  // CNPJ e endereço da loja, em uma linha discreta abaixo do nome.
+  function detalheLoja(id) {
+    var l = S.lojas.find(function f(x) { return String(x.id) === String(id); }) || {};
+    var partes = [l.cnpj ? 'CNPJ ' + l.cnpj : '', l.endereco || '', l.cep ? 'CEP ' + l.cep : ''].filter(Boolean);
+    return partes.length ? '<p class="sup-muted sup-small">' + esc(partes.join(' · ')) + '</p>' : '';
+  }
+
   function renderLojaDetalhe() {
     var lista = S.itens.slice().filter(function f(i) {
       var q = D.normalizarTexto(S.busca);
       return (S.categoria === 'Todas' || i.categoria === S.categoria) && (!q || D.normalizarTexto(i.nome).includes(q));
     }).sort(function s(a, b) { return String(a.categoria).localeCompare(String(b.categoria), 'pt-BR') || String(a.nome).localeCompare(String(b.nome), 'pt-BR'); });
     var valores = S.contagem.valores || {};
-    $('sup-content').innerHTML = '<div class="sup-card"><div class="sup-card-head"><div class="sup-title-row"><button type="button" class="sup-btn" data-action="voltar-lojas"><i data-lucide="arrow-left" class="w-4 h-4"></i><span>Lojas</span></button><h3 class="sup-h3">' + esc(lojaNome(S.lojaDetalhe)) + '</h3></div>' +
+    $('sup-content').innerHTML = '<div class="sup-card"><div class="sup-card-head"><div class="sup-title-row"><button type="button" class="sup-btn" data-action="voltar-lojas"><i data-lucide="arrow-left" class="w-4 h-4"></i><span>Lojas</span></button><div><h3 class="sup-h3">' + esc(lojaNome(S.lojaDetalhe)) + '</h3>' + detalheLoja(S.lojaDetalhe) + '</div></div>' +
       '<div class="sup-actions"><button type="button" class="sup-btn" data-action="copiar-de-loja"><i data-lucide="copy-plus" class="w-4 h-4"></i><span>Copiar lista de outra loja</span></button><button type="button" class="sup-btn" data-action="colar-excel"><i data-lucide="clipboard-paste" class="w-4 h-4"></i><span>Colar lista do Excel</span></button><button type="button" class="sup-btn sup-btn--primary" data-action="item-novo-loja"><i data-lucide="plus" class="w-4 h-4"></i><span>Novo item</span></button></div></div>' +
       filtrosItens() +
       '<div class="sup-table-scroll"><table class="sup-table sup-table--click"><thead><tr><th>Item</th><th>Categoria</th><th class="sup-center">Und</th><th class="sup-num">Estoque ideal</th><th class="sup-num">Último físico</th><th class="sup-num">Custo unit.</th><th>Fornecedor</th><th class="sup-center">Ativo</th></tr></thead><tbody>' +

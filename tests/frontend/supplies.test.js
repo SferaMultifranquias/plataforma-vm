@@ -280,4 +280,27 @@ test('excel do pedido: botões PDF e Excel na solicitação e geração pelo XLS
   assert.ok(read('public/index.html').includes('xlsx.full.min.js'));
 });
 
+// ───────────── CNPJ e endereço das lojas ─────────────
+test('lojas: lista busca CNPJ/endereço e volta ao conjunto antigo de colunas se o banco ainda não as tem', async () => {
+  const chamadas = [];
+  const sb = { from: () => ({ select: (colunas) => {
+    chamadas.push(colunas);
+    const q = { eq: () => q, in: () => q, order: () => Promise.resolve(chamadas.length === 1 ? { error: { message: 'column lojas.cnpj does not exist' } } : { data: [{ id: 1, nome: 'Loja' }] }) };
+    return q;
+  } }) };
+  const lojas = await Sup.listarLojas(sb, { papel: 'admin' });
+  assert.equal(lojas.length, 1);
+  assert.equal(chamadas.length, 2);
+  assert.ok(chamadas[0].includes('cnpj') && chamadas[0].includes('endereco') && chamadas[0].includes('cep'));
+  assert.ok(!chamadas[1].includes('cnpj'));
+});
+
+test('lojas: migration só adiciona colunas opcionais e a tela mostra CNPJ e endereço', () => {
+  const sql = read('supabase/migrations/20261117180000_add_store_cnpj_endereco.sql');
+  ['cnpj', 'endereco', 'cep'].forEach((c) => assert.ok(sql.includes('add column if not exists ' + c + ' text'), c));
+  assert.ok(!/drop |delete |update public\.lojas/i.test(sql));
+  const code = read('public/js/pages/supplies/supplies-module.js');
+  assert.ok(code.includes('<th>CNPJ</th><th>Endereço</th>') && code.includes('detalheLoja'));
+});
+
 console.log('Supplies tests passed.');
