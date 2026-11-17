@@ -266,6 +266,9 @@ test('excel do pedido: cabeçalho, itens incluídos, total e observação', () =
   assert.equal(p.total, 13.5);
   assert.deepEqual(p.linhas[1], ['Pedido Nº', 'SUP-2026-00007-1']);
   assert.deepEqual(p.linhas[3], ['Fornecedor', 'Jaé']);
+  const comEndereco = Sup.montarPlanilhaPedido({ grupo, solicitacao: { numero: 'X' }, loja: { nome: 'Olegario', endereco: 'Av. Olegário Maciel, 163 - Caratinga/MG', cep: '35300-365', cnpj: '57.189.430/0001-10' }, emissao: '17/11/2026' });
+  assert.ok(comEndereco.linhas.some((l) => l[0] === 'Endereço de entrega' && l[1] === 'Av. Olegário Maciel, 163 - Caratinga/MG - CEP 35300-365'));
+  assert.ok(comEndereco.linhas.some((l) => l[0] === 'CNPJ da loja' && l[1] === '57.189.430/0001-10'));
   assert.deepEqual(p.linhas[p.primeiraItem], [1, 'Copo 200 ml', 'PCT', 3, 4.5, 13.5]);
   assert.deepEqual(p.linhas[p.primeiraItem + 1], [2, 'Fita', 'UN', 2, null, null]);
   assert.deepEqual(p.linhas[p.primeiraItem + 2], ['', '', '', '', 'TOTAL', 13.5]);

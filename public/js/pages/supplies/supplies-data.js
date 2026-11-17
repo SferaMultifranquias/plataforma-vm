@@ -218,6 +218,8 @@
       ['Emissão', info.emissao || ''],
       ['Fornecedor', g.nomeFornecedor || 'A definir'],
       ['Entregar em (loja)', loja.nome || ''],
+      ['Endereço de entrega', (loja.endereco || '') + (loja.endereco && loja.cep ? ' - CEP ' + loja.cep : '')],
+      ['CNPJ da loja', loja.cnpj || ''],
       ['Código da loja', loja.codigo || loja.id || ''],
       ['Centro de custo', loja.centro_custo || ''],
       ['Ref. solicitação da loja', info.solicitacao ? info.solicitacao.numero : ''],

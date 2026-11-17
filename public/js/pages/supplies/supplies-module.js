@@ -673,16 +673,27 @@
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.text('Emissão: ' + new Date().toLocaleDateString('pt-BR'), W - M, 18, { align: 'right' });
     var y = 34;
     var half = (W - 2 * M - 6) / 2;
-    var bloco = function bloco(x, titulo, linhas) {
-      doc.setDrawColor(210); doc.setFillColor(247, 248, 250); doc.roundedRect(x, y, half, 26, 2, 2, 'FD');
+    // Linhas longas (ex.: endereço) quebram em mais de uma linha; os dois quadros ficam com a mesma altura.
+    var quebrar = function quebrar(t, i) { doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.setFontSize(i === 0 ? 11 : 9); return doc.splitTextToSize(String(t), half - 8); };
+    var medir = function medir(linhas) { return 14 + linhas.reduce(function sum(a, t, i) { return a + quebrar(t, i).length * 4.8; }, 0); };
+    var bloco = function bloco(x, titulo, linhas, altura) {
+      doc.setDrawColor(210); doc.setFillColor(247, 248, 250); doc.roundedRect(x, y, half, altura, 2, 2, 'FD');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(110); doc.text(titulo.toUpperCase(), x + 4, y + 6);
       doc.setTextColor(30);
-      linhas.forEach(function line(t, i) { doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.setFontSize(i === 0 ? 11 : 9); doc.text(doc.splitTextToSize(t, half - 8)[0], x + 4, y + 12.5 + i * 5); });
+      var ty = y + 12.5;
+      linhas.forEach(function line(t, i) { quebrar(t, i).forEach(function parte(p) { doc.text(p, x + 4, ty); ty += 4.8; }); });
     };
-    bloco(M, 'Fornecedor', [g.nomeFornecedor || 'A definir']);
-    bloco(M + half + 6, 'Entregar em (loja)', [loja.nome, 'Código da loja: ' + (loja.codigo || loja.id) + (loja.centro_custo ? '  ·  Centro de custo: ' + loja.centro_custo : ''), 'Ref. solicitação da loja: ' + s.numero + ' (' + data(s.criado_em) + ')']);
+    var linhasFornecedor = [g.nomeFornecedor || 'A definir'];
+    var linhasLoja = [loja.nome];
+    if (loja.endereco) linhasLoja.push(loja.endereco + (loja.cep ? ' - CEP ' + loja.cep : ''));
+    if (loja.cnpj) linhasLoja.push('CNPJ: ' + loja.cnpj);
+    linhasLoja.push('Código da loja: ' + (loja.codigo || loja.id) + (loja.centro_custo ? '  ·  Centro de custo: ' + loja.centro_custo : ''));
+    linhasLoja.push('Ref. solicitação da loja: ' + s.numero + ' (' + data(s.criado_em) + ')');
+    var alturaQuadro = Math.max(26, medir(linhasFornecedor), medir(linhasLoja));
+    bloco(M, 'Fornecedor', linhasFornecedor, alturaQuadro);
+    bloco(M + half + 6, 'Entregar em (loja)', linhasLoja, alturaQuadro);
     doc.autoTable({
-      startY: y + 32,
+      startY: y + alturaQuadro + 6,
       margin: { left: M, right: M },
       head: [['#', 'Produto', 'Und', 'Qtd', 'Valor unit.', 'Valor total']],
       body: itens.map(function row(l, i) { return [String(i + 1), l.nome, l.und, Number(l.qtd).toLocaleString('pt-BR', { maximumFractionDigits: 3 }), money(l.custo), l.custo === null ? '-' : money(l.custo * l.qtd)]; }),
