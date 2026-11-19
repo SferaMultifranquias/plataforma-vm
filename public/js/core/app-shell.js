@@ -603,6 +603,10 @@
     } catch (err) {
       searchAba = '';
     }
+    // Selos de aviso de Suprimentos no menu (silencioso se algo falhar ou se ainda não há login).
+    if (global.SuppliesNoticesModule && typeof global.SuppliesNoticesModule.atualizar === 'function') {
+      global.SuppliesNoticesModule.atualizar({ getSb: routerContext.getSb, getCurrentUser: routerContext.getCurrentUser });
+    }
     // O botão "Novo Pedido" do cabeçalho é do VM: não aparece dentro de Suprimentos.
     var headerNovoPedido = document.getElementById('header-novo-pedido');
     if (headerNovoPedido && headerNovoPedido.classList) {

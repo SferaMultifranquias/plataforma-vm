@@ -22,34 +22,35 @@ tailwind.config = {
 <script src="/vendor/supabase/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.11.0/src/sha256.min.js" integrity="sha384-QjbMdgv/hWELlDRbhj6tXsKlzXhrlrSIGNqgdQVvxYQpo+vA+4jOWramMq56bPSg" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
-<script src="/js/shared/app-utils.js?v=20261119-5"></script>
-<script src="/js/shared/order-rules.js?v=20261119-5"></script>
-<script src="/js/shared/confirmation-modal.js?v=20261119-5"></script>
-<script src="/js/pages/stores/stores-module.js?v=20261119-5"></script>
-<script src="/js/pages/orders/orders-module.js?v=20261119-5"></script>
-<script src="/js/pages/order-form/order-form-module.js?v=20261119-5"></script>
-<script src="/js/pages/dashboard/dashboard-module.js?v=20261119-5"></script>
-<script src="/js/core/auth.js?v=20261119-5"></script>
-<script src="/js/pages/orders/orders-data.js?v=20261119-5"></script>
-<script src="/js/pages/users/users-data.js?v=20261119-5"></script>
-<script src="/js/pages/users/users-module.js?v=20261119-5"></script>
-<script src="/js/pages/inventory/inventory-data.js?v=20261119-5"></script>
-<script src="/js/pages/inventory/inventory-module.js?v=20261119-5"></script>
-<script src="/js/pages/account/account-module.js?v=20261119-5"></script>
-<script src="/js/pages/supplies/supplies-data.js?v=20261119-5"></script>
-<script src="/js/pages/supplies/supplies-dashboard.js?v=20261119-5"></script>
-<script src="/js/pages/supplies/supplies-module.js?v=20261119-5"></script>
-<script src="/js/core/app-shell.js?v=20261119-5"></script>
-<link rel="stylesheet" href="/styles/pages/orders.css?v=20261119-5">
-<link rel="stylesheet" href="/styles/pages/order-form.css?v=20261119-5">
-<link rel="stylesheet" href="/styles/pages/users.css?v=20261119-5">
-<link rel="stylesheet" href="/styles/pages/login.css?v=20261119-5">
-<link rel="stylesheet" href="/styles/pages/stores.css?v=20261119-5">
-<link rel="stylesheet" href="/styles/pages/dashboard.css?v=20261119-5">
-<link rel="stylesheet" href="/styles/pages/inventory.css?v=20261119-5">
-<link rel="stylesheet" href="/styles/pages/supplies.css?v=20261119-5">
+<script src="/js/shared/app-utils.js?v=20261119-6"></script>
+<script src="/js/shared/order-rules.js?v=20261119-6"></script>
+<script src="/js/shared/confirmation-modal.js?v=20261119-6"></script>
+<script src="/js/pages/stores/stores-module.js?v=20261119-6"></script>
+<script src="/js/pages/orders/orders-module.js?v=20261119-6"></script>
+<script src="/js/pages/order-form/order-form-module.js?v=20261119-6"></script>
+<script src="/js/pages/dashboard/dashboard-module.js?v=20261119-6"></script>
+<script src="/js/core/auth.js?v=20261119-6"></script>
+<script src="/js/pages/orders/orders-data.js?v=20261119-6"></script>
+<script src="/js/pages/users/users-data.js?v=20261119-6"></script>
+<script src="/js/pages/users/users-module.js?v=20261119-6"></script>
+<script src="/js/pages/inventory/inventory-data.js?v=20261119-6"></script>
+<script src="/js/pages/inventory/inventory-module.js?v=20261119-6"></script>
+<script src="/js/pages/account/account-module.js?v=20261119-6"></script>
+<script src="/js/pages/supplies/supplies-data.js?v=20261119-6"></script>
+<script src="/js/pages/supplies/supplies-dashboard.js?v=20261119-6"></script>
+<script src="/js/pages/supplies/supplies-notices.js?v=20261119-6"></script>
+<script src="/js/pages/supplies/supplies-module.js?v=20261119-6"></script>
+<script src="/js/core/app-shell.js?v=20261119-6"></script>
+<link rel="stylesheet" href="/styles/pages/orders.css?v=20261119-6">
+<link rel="stylesheet" href="/styles/pages/order-form.css?v=20261119-6">
+<link rel="stylesheet" href="/styles/pages/users.css?v=20261119-6">
+<link rel="stylesheet" href="/styles/pages/login.css?v=20261119-6">
+<link rel="stylesheet" href="/styles/pages/stores.css?v=20261119-6">
+<link rel="stylesheet" href="/styles/pages/dashboard.css?v=20261119-6">
+<link rel="stylesheet" href="/styles/pages/inventory.css?v=20261119-6">
+<link rel="stylesheet" href="/styles/pages/supplies.css?v=20261119-6">
 <script>
-window.APP_VERSION = '20261119-5';
+window.APP_VERSION = '20261119-6';
 </script>
 <style>
   * { font-family: 'Inter', system-ui, sans-serif; }
@@ -145,6 +146,7 @@ window.APP_VERSION = '20261119-5';
       <a id="nav-sup-solicitacoes" href="/suprimentos?aba=solicitacoes" data-route="/suprimentos" data-resource="suprimentos" data-sup-papel="admin" data-sup-aba="solicitacoes" data-sup-abas-extra="contagem" data-sup-default class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
         <i data-lucide="inbox" class="w-5 h-5 shrink-0"></i>
         <span class="sidebar-text text-sm whitespace-nowrap">Pedidos das lojas</span>
+        <span id="badge-sup-solicitacoes" class="sidebar-text hidden-badge ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold items-center justify-center" style="display:none"></span>
       </a>
       <a id="nav-sup-itens" href="/suprimentos?aba=itens" data-route="/suprimentos" data-resource="suprimentos" data-sup-papel="admin" data-sup-aba="itens" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
         <i data-lucide="list" class="w-5 h-5 shrink-0"></i>
@@ -169,6 +171,7 @@ window.APP_VERSION = '20261119-5';
       <a id="nav-sup-minhas" href="/suprimentos?aba=minhas" data-route="/suprimentos" data-resource="suprimentos" data-sup-papel="loja" data-sup-aba="minhas" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
         <i data-lucide="send" class="w-5 h-5 shrink-0"></i>
         <span class="sidebar-text text-sm whitespace-nowrap">Meus pedidos de suprimentos</span>
+        <span id="badge-sup-minhas" class="sidebar-text hidden-badge ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold items-center justify-center" style="display:none"></span>
       </a>
       <div id="nav-admin" class="sidebar-text px-2 pt-3 pb-1 flex items-center gap-2">
         <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Administração</span>

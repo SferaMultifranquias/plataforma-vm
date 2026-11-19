@@ -460,15 +460,39 @@
   // ───────────── LOJA: minhas solicitações ─────────────
   function listaSolicitacoes(sols, comLoja) {
     if (!sols.length) return '<div class="sup-empty">Nenhuma solicitação.</div>';
-    return '<div class="sup-table-scroll"><table class="sup-table sup-table--click"><thead><tr>' + (comLoja ? '<th>Loja</th>' : '') + '<th>Número</th><th>Enviada em</th><th class="sup-num">Itens</th><th class="sup-num">Total</th><th>Status</th><th>Resposta da Sfera</th></tr></thead><tbody>' +
+    return '<div class="sup-table-scroll"><table class="sup-table sup-table--click"><thead><tr>' + (comLoja ? '<th>Loja</th>' : '') + '<th>Número</th><th>Enviada em</th><th class="sup-num">Itens</th><th class="sup-num">Total</th><th>Status</th><th>Recebimento</th><th>Resposta da Sfera</th></tr></thead><tbody>' +
       sols.map(function row(s) {
         return '<tr data-sol="' + esc(s.id) + '">' + (comLoja ? '<td><b class="sup-strong">' + esc(lojaNome(s.store_id)) + '</b></td>' : '') +
-          '<td class="sup-mono">' + esc(s.numero) + '</td><td>' + dataHora(s.criado_em) + '</td><td class="sup-num">' + (s.itens || []).length + '</td><td class="sup-num">' + brl(s.total) + '</td><td>' + pill(s.status) + '</td><td class="sup-muted sup-ellipsis">' + esc(s.resposta || '') + '</td></tr>';
+          '<td class="sup-mono">' + esc(s.numero) + '</td><td>' + dataHora(s.criado_em) + '</td><td class="sup-num">' + (s.itens || []).length + '</td><td class="sup-num">' + brl(s.total) + '</td><td>' + pill(s.status) + '</td><td>' + celulaRecebimento(s) + '</td><td class="sup-muted sup-ellipsis">' + esc(s.resposta || '') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
 
+  function celulaRecebimento(s) {
+    var r = D.situacaoRecebimento(s);
+    if (r === 'aguardando') return '<span class="sup-pill sup-pill--warn">Aguardando confirmação</span>';
+    if (r === 'confirmado') return '<span class="sup-pill sup-pill--ok">Recebida ' + data(s.recebido_em) + '</span>';
+    return '<span class="sup-muted">—</span>';
+  }
+
+  // Avisos da loja (o selo no menu usa a mesma regra): entregas para confirmar e respostas novas da Sfera.
+  function faixaAvisosLoja(avisos) {
+    var partes = [];
+    if (avisos.confirmar) partes.push('<b>' + avisos.confirmar + '</b> ' + (avisos.confirmar === 1 ? 'entrega aguarda' : 'entregas aguardam') + ' a sua confirmação de recebimento');
+    if (avisos.respostas) partes.push('a Sfera respondeu <b>' + avisos.respostas + '</b> ' + (avisos.respostas === 1 ? 'solicitação' : 'solicitações') + ' desde a sua última visita');
+    return partes.length ? '<div class="sup-banner sup-banner--warn">' + partes.join(' · ') + '. Clique na solicitação para ver.</div>' : '';
+  }
+
   function renderMinhas() {
-    $('sup-content').innerHTML = '<div class="sup-card">' + listaSolicitacoes(S.sols, false) + '</div>';
+    var N = global.SuppliesNoticesModule;
+    var userId = S.usuario && S.usuario.id;
+    var avisos = D.contarAvisosLoja(S.sols, N ? N.ultimaVisita(userId) : null);
+    $('sup-content').innerHTML = faixaAvisosLoja(avisos) + '<div class="sup-card">' + listaSolicitacoes(S.sols, false) + '</div>';
+    if (N) { N.marcarVisto(userId); avisarMudanca(); }
+  }
+
+  // Pede ao menu para recalcular os selos de aviso.
+  function avisarMudanca() {
+    try { window.dispatchEvent(new Event('sup:avisos')); } catch (e) { /* sem selo: segue sem aviso */ }
   }
 
   function tabelaItensSolicitacao(s, mostrarIdeal) {
@@ -478,11 +502,29 @@
   }
 
   function verSolicitacaoLoja(s) {
+    var rec = D.situacaoRecebimento(s);
     abrirModal('Solicitação ' + s.numero,
       '<div class="sup-meta">' + pill(s.status) + '<span>Enviada em ' + dataHora(s.criado_em) + '</span></div>' +
       (s.resposta ? '<div class="sup-banner">Resposta da Sfera: ' + esc(s.resposta) + '</div>' : '') +
       (s.observacao ? '<p class="sup-muted">Sua observação: ' + esc(s.observacao) + '</p>' : '') +
-      tabelaItensSolicitacao(s, false), null, true);
+      tabelaItensSolicitacao(s, false) +
+      (rec === 'aguardando' ? '<div class="sup-banner sup-banner--warn">A Sfera marcou esta solicitação como entregue. Confirme quando o material chegar na loja.</div>' +
+        '<label class="sup-field"><span>Observação do recebimento (opcional)</span><textarea id="sup-rec-obs" class="form-input" rows="2" maxlength="500" placeholder="Ex.: chegou tudo certo, ou faltou 1 detergente"></textarea></label>' : '') +
+      (rec === 'confirmado' ? '<div class="sup-banner">Recebimento confirmado em ' + dataHora(s.recebido_em) + (s.recebimento_obs ? ' · ' + esc(s.recebimento_obs) : '') + '</div>' : ''),
+      rec === 'aguardando' ? '<button type="button" class="sup-btn" data-sup-close>Fechar</button><button type="button" class="sup-btn sup-btn--primary" id="sup-rec-ok"><i data-lucide="check" class="w-4 h-4"></i><span>Confirmar recebimento</span></button>' : null, true);
+    var ok = $('sup-rec-ok');
+    if (ok) ok.addEventListener('click', async function confirmar(ev) {
+      var b = ev.currentTarget;
+      b.disabled = true;
+      try {
+        await D.confirmarRecebimento(S.sb, s.id, $('sup-rec-obs').value.trim());
+        fecharModal();
+        toast('Recebimento confirmado. Obrigado!');
+        S.sols = await D.listarSolicitacoes(S.sb, S.lojaId);
+        avisarMudanca();
+        renderAba();
+      } catch (e) { b.disabled = false; erro(e, 'Não foi possível confirmar o recebimento. Tente de novo.'); }
+    });
   }
 
   // ───────────── ADMIN: solicitações ─────────────
@@ -502,8 +544,9 @@
 
   function verSolicitacaoAdmin(s) {
     abrirModal('Solicitação ' + s.numero + ' · ' + lojaNome(s.store_id),
-      '<div class="sup-meta">' + pill(s.status) + '<span>Enviada em ' + dataHora(s.criado_em) + '</span>' + (s.respondido_em ? '<span>Respondida em ' + dataHora(s.respondido_em) + '</span>' : '') + '</div>' +
+      '<div class="sup-meta">' + pill(s.status) + '<span>Enviada em ' + dataHora(s.criado_em) + '</span>' + (s.respondido_em ? '<span>Respondida em ' + dataHora(s.respondido_em) + '</span>' : '') + celulaRecebimento(s) + '</div>' +
       (s.observacao ? '<div class="sup-banner">Observação da loja: ' + esc(s.observacao) + '</div>' : '') +
+      (s.recebimento_obs ? '<div class="sup-banner">Observação do recebimento: ' + esc(s.recebimento_obs) + '</div>' : '') +
       tabelaItensSolicitacao(s, (s.itens || []).some(function temFisico(i) { return i.fisico !== null && i.fisico !== undefined; })) +
       '<div class="sup-grid2"><label class="sup-field"><span>Status</span><select id="sup-resp-status" class="form-select">' +
       Object.keys(STATUS).map(function o(k) { return '<option value="' + k + '"' + (s.status === k ? ' selected' : '') + '>' + STATUS[k].label + '</option>'; }).join('') +
@@ -515,6 +558,7 @@
         await D.responderSolicitacao(S.sb, s.id, $('sup-resp-status').value, $('sup-resp-texto').value.trim());
         fecharModal();
         toast('Resposta salva. A loja já vê no sistema dela.');
+        avisarMudanca();
         renderAba();
       } catch (e) { ev.currentTarget.disabled = false; erro(e); }
     });
@@ -612,6 +656,7 @@
     var aprovou = false;
     var baixar = async function baixar(indices, botao) {
       var gs = indices.map(ler).filter(function f(g) { return g.linhas.some(function l(x) { return x.incluir && x.qtd > 0; }); });
+      gs.forEach(function cad(g) { g.cadastro = acharCadastroFornecedor(g.nomeFornecedor); });
       if (!gs.length) { toast('Nenhum item marcado para pedir.'); return; }
       botao.disabled = true;
       try {
@@ -641,7 +686,7 @@
   async function gerarExcelPedido(s, loja, g, obs) {
     var X = global.XLSX;
     if (!X || !X.utils) throw new Error('Não foi possível carregar o gerador de Excel. Verifique a internet e atualize a página.');
-    var plan = D.montarPlanilhaPedido({ grupo: g, solicitacao: s, loja: loja, obs: obs, emissao: new Date().toLocaleDateString('pt-BR') });
+    var plan = D.montarPlanilhaPedido({ grupo: g, cadastro: g.cadastro, solicitacao: s, loja: loja, obs: obs, emissao: new Date().toLocaleDateString('pt-BR') });
     var ws = X.utils.aoa_to_sheet(plan.linhas);
     ws['!cols'] = [{ wch: 24 }, { wch: 46 }, { wch: 8 }, { wch: 10 }, { wch: 14 }, { wch: 16 }];
     // Números como números no Excel (somam e ordenam): quantidade, valor unitário e total em R$.
@@ -684,6 +729,9 @@
       linhas.forEach(function line(t, i) { quebrar(t, i).forEach(function parte(p) { doc.text(p, x + 4, ty); ty += 4.8; }); });
     };
     var linhasFornecedor = [g.nomeFornecedor || 'A definir'];
+    if (g.cadastro && g.cadastro.cnpj) linhasFornecedor.push('CNPJ/CPF: ' + g.cadastro.cnpj);
+    var contatoForn = g.cadastro ? [g.cadastro.contato, g.cadastro.telefone, g.cadastro.email].filter(Boolean).join(' · ') : '';
+    if (contatoForn) linhasFornecedor.push('Contato: ' + contatoForn);
     var linhasLoja = [loja.nome];
     if (loja.endereco) linhasLoja.push(loja.endereco + (loja.cep ? ' - CEP ' + loja.cep : ''));
     if (loja.cnpj) linhasLoja.push('CNPJ: ' + loja.cnpj);
@@ -957,6 +1005,13 @@
     }
   }
 
+  // Dados do cadastro (CNPJ, contato) do fornecedor de um pedido, achado pelo nome.
+  function acharCadastroFornecedor(nome) {
+    var n = D.normalizarTexto(nome);
+    if (!n) return null;
+    return S.fornecedores.find(function f(x) { return D.normalizarTexto(x.nome) === n; }) || null;
+  }
+
   function avisoSemFornecedores() {
     return '<div class="sup-card"><div class="sup-empty">O cadastro de fornecedores ainda não está disponível no banco de dados. Peça para aplicar a migration <b>20261117150000_add_supplies_suppliers</b>.</div></div>';
   }
@@ -1182,6 +1237,34 @@
     return partes.length ? '<p class="sup-muted sup-small">' + esc(partes.join(' · ')) + '</p>' : '';
   }
 
+  // Edita CNPJ, endereço, CEP, cidade e UF da loja (aparecem no pedido ao fornecedor, em "Entregar em").
+  function editarDadosLoja() {
+    var l = S.lojas.find(function f(x) { return String(x.id) === String(S.lojaDetalhe); });
+    if (!l) return;
+    abrirModal('Dados da loja · ' + l.nome,
+      '<div class="sup-grid2"><label class="sup-field"><span>CNPJ</span><input id="sup-lj-cnpj" class="form-input" maxlength="20" inputmode="numeric" value="' + esc(l.cnpj || '') + '" placeholder="00.000.000/0000-00"></label>' +
+      '<label class="sup-field"><span>CEP</span><input id="sup-lj-cep" class="form-input" maxlength="9" inputmode="numeric" value="' + esc(l.cep || '') + '" placeholder="00000-000"></label></div>' +
+      '<label class="sup-field"><span>Endereço (rua, número, complemento, bairro)</span><input id="sup-lj-end" class="form-input" maxlength="200" value="' + esc(l.endereco || '') + '"></label>' +
+      '<div class="sup-grid2"><label class="sup-field"><span>Cidade</span><input id="sup-lj-cidade" class="form-input" maxlength="80" value="' + esc(l.cidade || '') + '"></label>' +
+      '<label class="sup-field"><span>UF</span><input id="sup-lj-uf" class="form-input" maxlength="2" value="' + esc(l.estado || '') + '" placeholder="MG"></label></div>',
+      '<button type="button" class="sup-btn" data-sup-close>Cancelar</button><button type="button" class="sup-btn sup-btn--primary" id="sup-lj-ok">Salvar</button>', true);
+    $('sup-lj-ok').addEventListener('click', async function salvar(ev) {
+      var b = ev.currentTarget;
+      var campos = D.normalizarLoja({ cnpj: $('sup-lj-cnpj').value, cep: $('sup-lj-cep').value, endereco: $('sup-lj-end').value, cidade: $('sup-lj-cidade').value, estado: $('sup-lj-uf').value });
+      var erros = D.validarLoja(campos);
+      if (erros.length) return toast(erros[0]);
+      b.disabled = true;
+      try {
+        var r = await D.atualizarLoja(S.sb, l.id, campos);
+        if (!r || !r.length) throw new Error('Sem permissão para alterar a loja.');
+        Object.assign(l, campos);
+        fecharModal();
+        toast('Dados da loja salvos.');
+        renderAba();
+      } catch (e) { b.disabled = false; erro(e); }
+    });
+  }
+
   function renderLojaDetalhe() {
     var lista = S.itens.slice().filter(function f(i) {
       var q = D.normalizarTexto(S.busca);
@@ -1189,7 +1272,7 @@
     }).sort(function s(a, b) { return String(a.categoria).localeCompare(String(b.categoria), 'pt-BR') || String(a.nome).localeCompare(String(b.nome), 'pt-BR'); });
     var valores = S.contagem.valores || {};
     $('sup-content').innerHTML = '<div class="sup-card"><div class="sup-card-head"><div class="sup-title-row"><button type="button" class="sup-btn" data-action="voltar-lojas"><i data-lucide="arrow-left" class="w-4 h-4"></i><span>Lojas</span></button><div><h3 class="sup-h3">' + esc(lojaNome(S.lojaDetalhe)) + '</h3>' + detalheLoja(S.lojaDetalhe) + '</div></div>' +
-      '<div class="sup-actions"><button type="button" class="sup-btn" data-action="copiar-de-loja"><i data-lucide="copy-plus" class="w-4 h-4"></i><span>Copiar lista de outra loja</span></button><button type="button" class="sup-btn" data-action="colar-excel"><i data-lucide="clipboard-paste" class="w-4 h-4"></i><span>Colar lista do Excel</span></button><button type="button" class="sup-btn sup-btn--primary" data-action="item-novo-loja"><i data-lucide="plus" class="w-4 h-4"></i><span>Novo item</span></button></div></div>' +
+      '<div class="sup-actions"><button type="button" class="sup-btn" data-action="loja-editar"><i data-lucide="pencil" class="w-4 h-4"></i><span>Dados da loja</span></button><button type="button" class="sup-btn" data-action="copiar-de-loja"><i data-lucide="copy-plus" class="w-4 h-4"></i><span>Copiar lista de outra loja</span></button><button type="button" class="sup-btn" data-action="colar-excel"><i data-lucide="clipboard-paste" class="w-4 h-4"></i><span>Colar lista do Excel</span></button><button type="button" class="sup-btn sup-btn--primary" data-action="item-novo-loja"><i data-lucide="plus" class="w-4 h-4"></i><span>Novo item</span></button></div></div>' +
       filtrosItens() +
       '<div class="sup-table-scroll"><table class="sup-table sup-table--click"><thead><tr><th>Item</th><th>Categoria</th><th class="sup-center">Und</th><th class="sup-num">Estoque ideal</th><th class="sup-num">Último físico</th><th class="sup-num">Custo unit.</th><th>Fornecedor</th><th class="sup-center">Ativo</th></tr></thead><tbody>' +
       (lista.map(function row(i) {
@@ -1306,6 +1389,7 @@
     if (a === 'novo-pedido-loja') return irParaAba('contagem');
     if (a === 'voltar-pedidos') return irParaAba('solicitacoes');
     if (a === 'consolidado') return copiarConsolidado();
+    if (a === 'loja-editar') return editarDadosLoja();
     if (a === 'forn-novo') return modalFornecedor(null);
     if (a === 'if-adicionar') return adicionarItensAoFornecedor();
     if (a === 'if-remover') return removerItensDoFornecedor();

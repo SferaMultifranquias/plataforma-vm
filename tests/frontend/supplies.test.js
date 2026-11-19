@@ -306,6 +306,86 @@ test('lojas: migration só adiciona colunas opcionais e a tela mostra CNPJ e end
   assert.ok(code.includes('<th>CNPJ</th><th>Endereço</th>') && code.includes('detalheLoja'));
 });
 
+// ───────────── Dados da loja, recebimento, avisos e novos indicadores ─────────────
+test('loja: normaliza e valida CNPJ, CEP e UF', () => {
+  const l = Sup.normalizarLoja({ cnpj: '57189430000110', cep: '35300365', endereco: '  Av.  Olegário Maciel, 163 ', cidade: ' Caratinga ', estado: 'mg' });
+  assert.deepEqual(l, { cnpj: '57.189.430/0001-10', endereco: 'Av. Olegário Maciel, 163', cep: '35300-365', cidade: 'Caratinga', estado: 'MG' });
+  assert.deepEqual(Sup.validarLoja(l), []);
+  assert.deepEqual(Sup.validarLoja(Sup.normalizarLoja({})), []);
+  assert.ok(Sup.validarLoja(Sup.normalizarLoja({ cnpj: '123' })).some((e) => /CNPJ/.test(e)));
+  assert.ok(Sup.validarLoja(Sup.normalizarLoja({ cep: '123' })).some((e) => /CEP/.test(e)));
+  assert.ok(Sup.validarLoja(Sup.normalizarLoja({ estado: 'Minas' })).some((e) => /Estado/.test(e)));
+});
+
+test('recebimento e avisos: situação, avisos da Sfera e da loja', () => {
+  const entregueAberta = { status: 'entregue', recebido_em: null };
+  const entregueOk = { status: 'entregue', recebido_em: '2026-11-18T10:00:00Z' };
+  assert.equal(Sup.situacaoRecebimento(entregueAberta), 'aguardando');
+  assert.equal(Sup.situacaoRecebimento(entregueOk), 'confirmado');
+  assert.equal(Sup.situacaoRecebimento({ status: 'pendente' }), '');
+  assert.equal(Sup.contarAvisosAdmin([{ status: 'pendente' }, { status: 'pendente' }, { status: 'aprovada' }]), 2);
+  const sols = [entregueAberta, entregueOk,
+    { status: 'aprovada', respondido_em: '2026-11-18T09:00:00Z' },
+    { status: 'recusada', respondido_em: '2026-11-10T09:00:00Z' },
+    { status: 'pendente', respondido_em: null }];
+  assert.deepEqual(Sup.contarAvisosLoja(sols, '2026-11-15T00:00:00Z'), { confirmar: 1, respostas: 1, total: 2 });
+  assert.deepEqual(Sup.contarAvisosLoja(sols, null), { confirmar: 1, respostas: 2, total: 3 });
+});
+
+test('dashboard: recebimento, prazo médio, custo por categoria e lojas que mais solicitam', () => {
+  const sols = [
+    { store_id: 1, status: 'entregue', total: 100, criado_em: '2026-11-01T12:00:00Z', respondido_em: '2026-11-03T12:00:00Z', recebido_em: '2026-11-04T12:00:00Z', itens: [{ nome: 'A', categoria: 'Limpeza', compra: 2, custo: 10 }, { nome: 'B', categoria: 'Copa', compra: 1, custo: 80 }] },
+    { store_id: 1, status: 'entregue', total: 50, criado_em: '2026-11-05T12:00:00Z', respondido_em: '2026-11-09T12:00:00Z', recebido_em: null, itens: [{ nome: 'A', categoria: 'Limpeza', compra: 5, custo: 10 }] },
+    { store_id: 2, status: 'pendente', total: 0, criado_em: '2026-11-06T12:00:00Z', itens: [] },
+  ];
+  const k = Dash.kpis(sols);
+  assert.equal(k.aguardandoConfirmacao, 1);
+  assert.equal(k.recebimentosConfirmados, 1);
+  assert.equal(k.prazoMedioDias, 3);
+  assert.equal(k.valorMedio, 75);
+  assert.equal(Dash.kpis([]).prazoMedioDias, null);
+  assert.equal(Dash.prazoTexto(null), '—');
+  assert.deepEqual(Dash.custoPorCategoria(sols).map((c) => [c.rotulo, c.valor]), [['Limpeza', 70], ['Copa', 80]].sort((a, b) => b[1] - a[1]));
+  assert.deepEqual(Dash.solicitacoesPorLoja(sols, [{ id: 1, nome: 'A' }, { id: 2, nome: 'B' }]).map((x) => [x.rotulo, x.valor]), [['A', 2], ['B', 1]]);
+  const html = Dash.renderCorpo({ sols, lojas: [{ id: 1, nome: 'A' }, { id: 2, nome: 'B' }], filtros: Dash.filtrosVazios() });
+  ['Aguardando Confirmação', 'Prazo Médio de Entrega', 'Custo por Categoria', 'Lojas que Mais Solicitam'].forEach((t) => assert.ok(html.includes(t), t));
+});
+
+test('recebimento: migration usa função segura e a tela, a função do banco', () => {
+  const sql = read('supabase/migrations/20261119120000_add_supplies_receipt_confirmation.sql');
+  assert.ok(sql.includes('add column if not exists recebido_em timestamptz'));
+  assert.ok(/function public\.sup_confirmar_recebimento[\s\S]*security definer[\s\S]*set search_path = ''/.test(sql));
+  assert.ok(sql.includes('user_can_access_store(v.store_id)'));
+  assert.ok(sql.includes("v.status <> 'entregue'"));
+  assert.ok(/revoke execute on function public\.sup_confirmar_recebimento\(uuid, text\) from public, anon/.test(sql));
+  assert.ok(sql.includes("current_setting('app.sup_recebimento', true)"));
+  assert.ok(!/create policy[^;]*sup_solicitacoes[^;]*for update[^;]*user_can_access_store/i.test(sql));
+  const code = read('public/js/pages/supplies/supplies-module.js');
+  assert.ok(code.includes('Confirmar recebimento') && code.includes('D.confirmarRecebimento'));
+  assert.ok(read('public/js/pages/supplies/supplies-data.js').includes("sb.rpc('sup_confirmar_recebimento'"));
+});
+
+test('avisos no sistema: selos no menu, módulo carregado antes do shell e ganchos no roteador', () => {
+  const index = read('public/index.html');
+  assert.ok(index.includes('id="badge-sup-solicitacoes"') && index.includes('id="badge-sup-minhas"'));
+  assert.ok(index.indexOf('supplies-notices.js') !== -1 && index.indexOf('supplies-notices.js') < index.indexOf('app-shell.js'));
+  assert.ok(read('public/js/core/app-shell.js').includes('SuppliesNoticesModule'));
+  const code = read('public/js/pages/supplies/supplies-module.js');
+  assert.ok(code.includes("'sup:avisos'") && code.includes('faixaAvisosLoja'));
+  const notices = require(path.join(ROOT, 'public/js/pages/supplies/supplies-notices'));
+  assert.equal(typeof notices.atualizar, 'function');
+  assert.ok(!/\son(click|change|input)=/i.test(read('public/js/pages/supplies/supplies-notices.js')));
+});
+
+test('dados da loja e fornecedor do pedido: tela edita a loja e o pedido leva CNPJ/contato do fornecedor', () => {
+  const code = read('public/js/pages/supplies/supplies-module.js');
+  assert.ok(code.includes('editarDadosLoja') && code.includes("data-action=\"loja-editar\""));
+  assert.ok(code.includes('acharCadastroFornecedor'));
+  const p = Sup.montarPlanilhaPedido({ grupo: { numero: 'X', nomeFornecedor: 'Jaé', linhas: [] }, cadastro: { cnpj: '12.345.678/0001-90', contato: 'Ana', telefone: '1199', email: 'a@j.com' }, loja: {}, solicitacao: { numero: 'S' } });
+  assert.ok(p.linhas.some((l) => l[0] === 'CNPJ/CPF do fornecedor' && l[1] === '12.345.678/0001-90'));
+  assert.ok(p.linhas.some((l) => l[0] === 'Contato do fornecedor' && l[1] === 'Ana · 1199 · a@j.com'));
+});
+
 test('dashboard do VM se chama "Dashboard VM" no menu e no título da página', () => {
   assert.ok(read('public/index.html').includes('whitespace-nowrap">Dashboard VM</span>'));
   assert.match(read('public/js/core/app-shell.js'), /title:\s*'Dashboard VM'/);

@@ -89,11 +89,22 @@
     var itens = 0;
     var valor = 0;
     var valorEntregue = 0;
+    var aguardando = 0;
+    var recebidas = 0;
+    var comValor = 0;
+    var somaPrazo = 0;
+    var comPrazo = 0;
     (sols || []).forEach(function each(s) {
       lojas[String(s.store_id)] = true;
       linhas(s).forEach(function l(i) { itens += Number(i.compra) || 0; });
       valor += Number(s.total) || 0;
-      if (s.status === 'entregue') valorEntregue += Number(s.total) || 0;
+      if (Number(s.total) > 0) comValor++;
+      if (s.status === 'entregue') {
+        valorEntregue += Number(s.total) || 0;
+        if (s.recebido_em) recebidas++; else aguardando++;
+        var dias = (new Date(s.respondido_em).getTime() - new Date(s.criado_em).getTime()) / 86400000;
+        if (s.respondido_em && isFinite(dias) && dias >= 0) { somaPrazo += dias; comPrazo++; }
+      }
     });
     return {
       total: (sols || []).length,
@@ -106,7 +117,46 @@
       itens: itens,
       valor: valor,
       valorEntregue: valorEntregue,
+      aguardandoConfirmacao: aguardando,
+      recebimentosConfirmados: recebidas,
+      prazoMedioDias: comPrazo ? somaPrazo / comPrazo : null,
+      valorMedio: comValor ? valor / comValor : 0,
     };
+  }
+
+  // Quanto foi pedido (R$) em cada categoria de item.
+  function custoPorCategoria(sols, limite) {
+    var mapa = {};
+    (sols || []).forEach(function each(s) {
+      linhas(s).forEach(function l(i) {
+        var v = (Number(i.custo) || 0) * (Number(i.compra) || 0);
+        if (v <= 0) return;
+        var cat = String(i.categoria || 'Sem categoria').trim() || 'Sem categoria';
+        mapa[cat] = (mapa[cat] || 0) + v;
+      });
+    });
+    return Object.keys(mapa).map(function m(k) { return { rotulo: k, valor: mapa[k], texto: moeda(mapa[k]) }; })
+      .sort(function ord(a, b) { return b.valor - a.valor; })
+      .slice(0, limite || 8);
+  }
+
+  // Quantas solicitações cada loja fez (as mais ativas primeiro).
+  function solicitacoesPorLoja(sols, lojas, limite) {
+    var mapa = {};
+    (sols || []).forEach(function each(s) {
+      var k = String(s.store_id);
+      if (!mapa[k]) mapa[k] = { rotulo: nomeLoja(lojas, s.store_id), valor: 0 };
+      mapa[k].valor++;
+    });
+    return Object.keys(mapa).map(function m(k) { return mapa[k]; })
+      .sort(function ord(a, b) { return b.valor - a.valor; })
+      .slice(0, limite || 5)
+      .map(function fmt(x) { return { rotulo: x.rotulo, valor: x.valor, texto: x.valor + (x.valor === 1 ? ' solicitação' : ' solicitações') }; });
+  }
+
+  function prazoTexto(dias) {
+    if (dias === null || dias === undefined) return '—';
+    return dias < 1 ? 'menos de 1 dia' : numero(dias, 1) + (Math.round(dias * 10) / 10 === 1 ? ' dia' : ' dias');
   }
 
   function evolucaoMensal(sols) {
@@ -277,6 +327,12 @@
         kpiCard('Valor Total Solicitado', moeda(k.valor), 'Soma das solicitações', 'dollar-sign', 'emerald', 'sup-dash-valor') +
         kpiCard('Valor Entregue', moeda(k.valorEntregue), 'solicitações entregues', 'file-check', 'violet', 'sup-dash-valor-entregue') +
       '</div>' +
+      '<div class="dashboard-kpi-grid">' +
+        kpiCard('Aguardando Confirmação', k.aguardandoConfirmacao, 'entregues, a loja ainda não confirmou', 'clock', 'amber', 'sup-dash-aguardando') +
+        kpiCard('Recebimentos Confirmados', k.recebimentosConfirmados, 'confirmados pelas lojas', 'badge-check', 'emerald', 'sup-dash-recebidos') +
+        kpiCard('Prazo Médio de Entrega', prazoTexto(k.prazoMedioDias), 'da solicitação até a entrega', 'timer', 'violet', 'sup-dash-prazo') +
+        kpiCard('Valor Médio por Solicitação', moeda(k.valorMedio), 'solicitações com valor', 'calculator', 'blue', 'sup-dash-medio') +
+      '</div>' +
       '<div class="dashboard-chart-grid">' +
         '<div class="dashboard-card"><div class="dashboard-card-header"><h3 class="dashboard-card-title">Solicitações por Status</h3></div><div class="dashboard-chart-body-new">' + graficoStatus(porStatus(sols)) + '</div></div>' +
         '<div class="dashboard-card"><div class="dashboard-card-header"><h3 class="dashboard-card-title">Evolução de Solicitações</h3></div><div class="dashboard-chart-body-new">' + graficoLinha(evolucaoMensal(sols), 'Sem solicitações recentes') + '</div></div>' +
@@ -284,6 +340,10 @@
       '<div class="dashboard-chart-grid">' +
         '<div class="dashboard-card"><div class="dashboard-card-header"><h3 class="dashboard-card-title">Valor por Loja</h3></div><div class="dashboard-chart-body-new">' + graficoBarras(valorPorLoja(sols, ctx.lojas, 5), 'Sem dados de valor por loja', 'bar-chart-3') + '</div></div>' +
         '<div class="dashboard-card"><div class="dashboard-card-header"><h3 class="dashboard-card-title">Itens Mais Pedidos</h3></div><div class="dashboard-chart-body-new">' + graficoBarras(itensMaisPedidos(sols, 8), 'Sem itens solicitados', 'package') + '</div></div>' +
+      '</div>' +
+      '<div class="dashboard-chart-grid">' +
+        '<div class="dashboard-card"><div class="dashboard-card-header"><h3 class="dashboard-card-title">Custo por Categoria</h3></div><div class="dashboard-chart-body-new">' + graficoBarras(custoPorCategoria(sols, 8), 'Sem custos por categoria', 'tags') + '</div></div>' +
+        '<div class="dashboard-card"><div class="dashboard-card-header"><h3 class="dashboard-card-title">Lojas que Mais Solicitam</h3></div><div class="dashboard-chart-body-new">' + graficoBarras(solicitacoesPorLoja(sols, ctx.lojas, 5), 'Sem solicitações no período', 'store') + '</div></div>' +
       '</div>' +
       '<div class="dashboard-chart-grid">' +
         '<div class="dashboard-card"><div class="dashboard-card-header"><h3 class="dashboard-card-title">Evolução R$ das Solicitações</h3></div><div class="dashboard-chart-body-new">' + graficoLinha(evolucaoValorDiaria(sols), 'Sem dados de valor por dia') + '</div></div>' +
@@ -436,6 +496,9 @@
     afterRenderDashboardSuprimentos: afterRenderDashboardSuprimentos,
     beforeLeave: beforeLeave,
     STATUS: STATUS,
+    custoPorCategoria: custoPorCategoria,
+    solicitacoesPorLoja: solicitacoesPorLoja,
+    prazoTexto: prazoTexto,
     evolucaoMensal: evolucaoMensal,
     evolucaoValorDiaria: evolucaoValorDiaria,
     filtrar: filtrar,

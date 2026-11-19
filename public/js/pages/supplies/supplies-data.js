@@ -142,6 +142,58 @@
     return erros;
   }
 
+  // ───────────── Dados da loja (CNPJ, endereço, CEP, cidade, UF) ─────────────
+  function formatarCep(texto) {
+    var d = somenteDigitos(texto);
+    return d.length === 8 ? d.slice(0, 5) + '-' + d.slice(5) : String(texto || '').trim();
+  }
+
+  function normalizarLoja(campos) {
+    var vazioNulo = function vazioNulo(v) { var t = String(v || '').trim().replace(/\s+/g, ' '); return t ? t : null; };
+    var cnpj = vazioNulo(campos.cnpj);
+    var cep = vazioNulo(campos.cep);
+    var estado = vazioNulo(campos.estado);
+    return {
+      cnpj: cnpj ? (somenteDigitos(cnpj).length === 14 ? formatarDocumento(cnpj) : cnpj) : null,
+      endereco: vazioNulo(campos.endereco),
+      cep: cep ? formatarCep(cep) : null,
+      cidade: vazioNulo(campos.cidade),
+      estado: estado ? estado.toUpperCase() : null,
+    };
+  }
+
+  function validarLoja(l) {
+    var erros = [];
+    if (l.cnpj && somenteDigitos(l.cnpj).length !== 14) erros.push('CNPJ inválido: informe os 14 dígitos.');
+    if (l.cep && somenteDigitos(l.cep).length !== 8) erros.push('CEP inválido: informe os 8 dígitos.');
+    if (l.estado && !/^[A-Z]{2}$/.test(l.estado)) erros.push('Estado inválido: use a sigla com 2 letras (ex.: MG).');
+    return erros;
+  }
+
+  // ───────────── Recebimento e avisos ─────────────
+  // '' = não se aplica; 'aguardando' = entregue e a loja ainda não confirmou; 'confirmado'.
+  function situacaoRecebimento(sol) {
+    if (!sol || sol.status !== 'entregue') return '';
+    return sol.recebido_em ? 'confirmado' : 'aguardando';
+  }
+
+  // Avisos da Sfera: solicitações pendentes de resposta.
+  function contarAvisosAdmin(sols) {
+    return (sols || []).filter(function pend(s) { return s.status === 'pendente'; }).length;
+  }
+
+  // Avisos da loja: entregas para confirmar + respostas da Sfera (aprovada/recusada) depois da última visita.
+  function contarAvisosLoja(sols, ultimaVisita) {
+    var desde = ultimaVisita ? new Date(ultimaVisita).getTime() : 0;
+    var confirmar = 0;
+    var respostas = 0;
+    (sols || []).forEach(function each(s) {
+      if (situacaoRecebimento(s) === 'aguardando') confirmar++;
+      else if ((s.status === 'aprovada' || s.status === 'recusada') && s.respondido_em && new Date(s.respondido_em).getTime() > desde) respostas++;
+    });
+    return { confirmar: confirmar, respostas: respostas, total: confirmar + respostas };
+  }
+
   // Itens (agrupados pelo nome, como no cadastro de itens) de um fornecedor.
   // fornecedorId vazio = itens sem fornecedor.
   function itensDoFornecedor(linhas, fornecedorId) {
@@ -217,6 +269,8 @@
       ['Pedido Nº', g.numero],
       ['Emissão', info.emissao || ''],
       ['Fornecedor', g.nomeFornecedor || 'A definir'],
+      ['CNPJ/CPF do fornecedor', (info.cadastro && info.cadastro.cnpj) || ''],
+      ['Contato do fornecedor', info.cadastro ? [info.cadastro.contato, info.cadastro.telefone, info.cadastro.email].filter(Boolean).join(' · ') : ''],
       ['Entregar em (loja)', loja.nome || ''],
       ['Endereço de entrega', (loja.endereco || '') + (loja.endereco && loja.cep ? ' - CEP ' + loja.cep : '')],
       ['CNPJ da loja', loja.cnpj || ''],
@@ -346,6 +400,15 @@
     return mapa;
   }
 
+  async function atualizarLoja(sb, id, campos) {
+    return check(await sb.from('lojas').update(campos).eq('id', id).select('id,cnpj,endereco,cep,cidade,estado'));
+  }
+
+  // A loja não altera a solicitação: o recebimento passa por uma função do banco que valida o acesso.
+  async function confirmarRecebimento(sb, id, observacao) {
+    return check(await sb.rpc('sup_confirmar_recebimento', { p_id: id, p_obs: observacao || null }));
+  }
+
   async function listarFornecedores(sb) {
     return check(await sb.from('sup_fornecedores').select('*').order('nome')) || [];
   }
@@ -391,6 +454,14 @@
     agruparCatalogo: agruparCatalogo,
     atribuirFornecedor: atribuirFornecedor,
     atualizarFornecedor: atualizarFornecedor,
+    atualizarLoja: atualizarLoja,
+    confirmarRecebimento: confirmarRecebimento,
+    contarAvisosAdmin: contarAvisosAdmin,
+    contarAvisosLoja: contarAvisosLoja,
+    formatarCep: formatarCep,
+    normalizarLoja: normalizarLoja,
+    situacaoRecebimento: situacaoRecebimento,
+    validarLoja: validarLoja,
     atualizarItens: atualizarItens,
     calcularLinha: calcularLinha,
     excluirFornecedor: excluirFornecedor,
