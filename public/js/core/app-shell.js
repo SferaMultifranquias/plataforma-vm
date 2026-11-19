@@ -603,11 +603,6 @@
     } catch (err) {
       searchAba = '';
     }
-    // O título da lateral acompanha a área: Suprimentos ou VM.
-    var brandTitle = document.getElementById('sidebar-brand-title');
-    if (brandTitle) {
-      brandTitle.textContent = normalized === '/suprimentos' || normalized === '/dashboard-suprimentos' ? 'Sfera Suprimentos' : 'Sfera VM';
-    }
     // O botão "Novo Pedido" do cabeçalho é do VM: não aparece dentro de Suprimentos.
     var headerNovoPedido = document.getElementById('header-novo-pedido');
     if (headerNovoPedido && headerNovoPedido.classList) {
