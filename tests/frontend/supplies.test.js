@@ -306,4 +306,11 @@ test('lojas: migration só adiciona colunas opcionais e a tela mostra CNPJ e end
   assert.ok(code.includes('<th>CNPJ</th><th>Endereço</th>') && code.includes('detalheLoja'));
 });
 
+test('título da lateral: Sfera Suprimentos nas telas de Suprimentos e Sfera VM nas demais', () => {
+  assert.ok(read('public/index.html').includes('id="sidebar-brand-title"'));
+  const shell = read('public/js/core/app-shell.js');
+  assert.ok(shell.includes("'Sfera Suprimentos' : 'Sfera VM'"));
+  assert.ok(shell.includes("normalized === '/suprimentos' || normalized === '/dashboard-suprimentos'"));
+});
+
 console.log('Supplies tests passed.');
