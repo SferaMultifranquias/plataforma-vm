@@ -306,6 +306,11 @@ test('lojas: migration só adiciona colunas opcionais e a tela mostra CNPJ e end
   assert.ok(code.includes('<th>CNPJ</th><th>Endereço</th>') && code.includes('detalheLoja'));
 });
 
+test('dashboard do VM se chama "Dashboard VM" no menu e no título da página', () => {
+  assert.ok(read('public/index.html').includes('whitespace-nowrap">Dashboard VM</span>'));
+  assert.match(read('public/js/core/app-shell.js'), /title:\s*'Dashboard VM'/);
+});
+
 test('título da lateral: Sfera Suprimentos fixo, com Operação embaixo', () => {
   const index = read('public/index.html');
   assert.ok(index.includes('>Sfera Suprimentos</div>'));

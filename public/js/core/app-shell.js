@@ -208,7 +208,7 @@
         path: '/dashboard',
         key: 'dashboard',
         resource: 'dashboard',
-        title: 'Dashboard',
+        title: 'Dashboard VM',
         subtitle: 'Visão geral do sistema VM',
         render: function renderDashboard() {
           if (!global.DashboardModule || typeof global.DashboardModule.renderDashboard !== 'function') return '';

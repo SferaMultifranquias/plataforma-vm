@@ -22,34 +22,34 @@ tailwind.config = {
 <script src="/vendor/supabase/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.11.0/src/sha256.min.js" integrity="sha384-QjbMdgv/hWELlDRbhj6tXsKlzXhrlrSIGNqgdQVvxYQpo+vA+4jOWramMq56bPSg" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
-<script src="/js/shared/app-utils.js?v=20261119-4"></script>
-<script src="/js/shared/order-rules.js?v=20261119-4"></script>
-<script src="/js/shared/confirmation-modal.js?v=20261119-4"></script>
-<script src="/js/pages/stores/stores-module.js?v=20261119-4"></script>
-<script src="/js/pages/orders/orders-module.js?v=20261119-4"></script>
-<script src="/js/pages/order-form/order-form-module.js?v=20261119-4"></script>
-<script src="/js/pages/dashboard/dashboard-module.js?v=20261119-4"></script>
-<script src="/js/core/auth.js?v=20261119-4"></script>
-<script src="/js/pages/orders/orders-data.js?v=20261119-4"></script>
-<script src="/js/pages/users/users-data.js?v=20261119-4"></script>
-<script src="/js/pages/users/users-module.js?v=20261119-4"></script>
-<script src="/js/pages/inventory/inventory-data.js?v=20261119-4"></script>
-<script src="/js/pages/inventory/inventory-module.js?v=20261119-4"></script>
-<script src="/js/pages/account/account-module.js?v=20261119-4"></script>
-<script src="/js/pages/supplies/supplies-data.js?v=20261119-4"></script>
-<script src="/js/pages/supplies/supplies-dashboard.js?v=20261119-4"></script>
-<script src="/js/pages/supplies/supplies-module.js?v=20261119-4"></script>
-<script src="/js/core/app-shell.js?v=20261119-4"></script>
-<link rel="stylesheet" href="/styles/pages/orders.css?v=20261119-4">
-<link rel="stylesheet" href="/styles/pages/order-form.css?v=20261119-4">
-<link rel="stylesheet" href="/styles/pages/users.css?v=20261119-4">
-<link rel="stylesheet" href="/styles/pages/login.css?v=20261119-4">
-<link rel="stylesheet" href="/styles/pages/stores.css?v=20261119-4">
-<link rel="stylesheet" href="/styles/pages/dashboard.css?v=20261119-4">
-<link rel="stylesheet" href="/styles/pages/inventory.css?v=20261119-4">
-<link rel="stylesheet" href="/styles/pages/supplies.css?v=20261119-4">
+<script src="/js/shared/app-utils.js?v=20261119-5"></script>
+<script src="/js/shared/order-rules.js?v=20261119-5"></script>
+<script src="/js/shared/confirmation-modal.js?v=20261119-5"></script>
+<script src="/js/pages/stores/stores-module.js?v=20261119-5"></script>
+<script src="/js/pages/orders/orders-module.js?v=20261119-5"></script>
+<script src="/js/pages/order-form/order-form-module.js?v=20261119-5"></script>
+<script src="/js/pages/dashboard/dashboard-module.js?v=20261119-5"></script>
+<script src="/js/core/auth.js?v=20261119-5"></script>
+<script src="/js/pages/orders/orders-data.js?v=20261119-5"></script>
+<script src="/js/pages/users/users-data.js?v=20261119-5"></script>
+<script src="/js/pages/users/users-module.js?v=20261119-5"></script>
+<script src="/js/pages/inventory/inventory-data.js?v=20261119-5"></script>
+<script src="/js/pages/inventory/inventory-module.js?v=20261119-5"></script>
+<script src="/js/pages/account/account-module.js?v=20261119-5"></script>
+<script src="/js/pages/supplies/supplies-data.js?v=20261119-5"></script>
+<script src="/js/pages/supplies/supplies-dashboard.js?v=20261119-5"></script>
+<script src="/js/pages/supplies/supplies-module.js?v=20261119-5"></script>
+<script src="/js/core/app-shell.js?v=20261119-5"></script>
+<link rel="stylesheet" href="/styles/pages/orders.css?v=20261119-5">
+<link rel="stylesheet" href="/styles/pages/order-form.css?v=20261119-5">
+<link rel="stylesheet" href="/styles/pages/users.css?v=20261119-5">
+<link rel="stylesheet" href="/styles/pages/login.css?v=20261119-5">
+<link rel="stylesheet" href="/styles/pages/stores.css?v=20261119-5">
+<link rel="stylesheet" href="/styles/pages/dashboard.css?v=20261119-5">
+<link rel="stylesheet" href="/styles/pages/inventory.css?v=20261119-5">
+<link rel="stylesheet" href="/styles/pages/supplies.css?v=20261119-5">
 <script>
-window.APP_VERSION = '20261119-4';
+window.APP_VERSION = '20261119-5';
 </script>
 <style>
   * { font-family: 'Inter', system-ui, sans-serif; }
@@ -117,7 +117,7 @@ window.APP_VERSION = '20261119-4';
       </div>
       <a href="/dashboard" data-route="/dashboard" data-resource="dashboard" class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
         <i data-lucide="layout-dashboard" class="w-5 h-5 shrink-0"></i>
-        <span class="sidebar-text text-sm whitespace-nowrap">Dashboard</span>
+        <span class="sidebar-text text-sm whitespace-nowrap">Dashboard VM</span>
       </a>
 
       <div class="sidebar-text px-2 pt-3 pb-1" data-resource="pedidos">
@@ -204,7 +204,7 @@ window.APP_VERSION = '20261119-4';
   <main class="flex-1 flex flex-col overflow-hidden">
     <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0">
       <div>
-        <h1 id="page-title" class="text-base font-semibold text-slate-900">Dashboard</h1>
+        <h1 id="page-title" class="text-base font-semibold text-slate-900">Dashboard VM</h1>
         <p id="page-subtitle" class="text-xs text-slate-500">Visao geral do sistema VM</p>
       </div>
       <div class="flex items-center gap-4">
