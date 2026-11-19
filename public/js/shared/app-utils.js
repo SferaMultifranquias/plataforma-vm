@@ -267,7 +267,7 @@
     };
   }
 
-  var ADMIN_ONLY_RESOURCES = ['usuarios', 'controle-acesso', 'lojas-cadastro', 'suprimentos-admin'];
+  var ADMIN_ONLY_RESOURCES = ['usuarios', 'controle-acesso', 'lojas-cadastro', 'suprimentos-admin', 'estoque-sfera'];
   // Recursos liberados para usuários de lojas que não usam o VM (Levi's, Hering, Venda Direta).
   var SUPPLIES_ONLY_RESOURCES = ['suprimentos'];
 

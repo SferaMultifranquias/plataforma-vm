@@ -48,7 +48,7 @@ async function run() {
   // ── Static files ────────────────────────────────────────────────
   // _redirects contains every known shell route
   const redirects = read('public/_redirects');
-  for (const route of ['/dashboard', '/login', '/pedidos', '/novo-pedido', '/lojas', '/usuarios', '/estoque', '/suprimentos', '/dashboard-suprimentos']) {
+  for (const route of ['/dashboard', '/login', '/pedidos', '/novo-pedido', '/lojas', '/usuarios', '/estoque', '/suprimentos', '/dashboard-suprimentos', '/estoque-sfera']) {
     assert.ok(redirects.includes(route), `_redirects must include ${route}`);
   }
   // catch-all for SPA deep-link fallback

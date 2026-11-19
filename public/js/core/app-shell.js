@@ -405,6 +405,29 @@
         },
       },
       {
+        path: '/estoque-sfera',
+        key: 'estoque-sfera',
+        resource: 'estoque-sfera',
+        title: 'Estoque Sfera',
+        subtitle: 'Almoxarifado da Sfera: entradas de nota, saídas, pedidos de compra e consumo.',
+        template: '/pages/estoque-sfera.html',
+        init: function initEstoqueSfera(deps) {
+          if (!global.SferaStockModule || typeof global.SferaStockModule.afterRenderEstoqueSfera !== 'function') return Promise.resolve();
+          return global.SferaStockModule.afterRenderEstoqueSfera({
+            getCurrentUser: deps.getCurrentUser,
+            getSb: deps.getSb,
+            params: deps.params,
+            showToast: deps.showToast,
+          });
+        },
+        destroy: function destroyEstoqueSfera() {
+          if (global.SferaStockModule && typeof global.SferaStockModule.beforeLeave === 'function') {
+            return global.SferaStockModule.beforeLeave();
+          }
+          return Promise.resolve();
+        },
+      },
+      {
         path: '/estoque',
         key: 'estoque',
         resource: 'stock-checks-read',

@@ -8,6 +8,7 @@
 /estoque      /index.html    200
 /suprimentos  /index.html    200
 /dashboard-suprimentos  /index.html    200
+/estoque-sfera  /index.html    200
 /usuarios     /index.html    200
 # ponytail: catch-all ensures deep-links like /pedidos?orderId=X serve index.html
 /*            /index.html    200

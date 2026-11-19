@@ -22,35 +22,38 @@ tailwind.config = {
 <script src="/vendor/supabase/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.11.0/src/sha256.min.js" integrity="sha384-QjbMdgv/hWELlDRbhj6tXsKlzXhrlrSIGNqgdQVvxYQpo+vA+4jOWramMq56bPSg" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
-<script src="/js/shared/app-utils.js?v=20261119-6"></script>
-<script src="/js/shared/order-rules.js?v=20261119-6"></script>
-<script src="/js/shared/confirmation-modal.js?v=20261119-6"></script>
-<script src="/js/pages/stores/stores-module.js?v=20261119-6"></script>
-<script src="/js/pages/orders/orders-module.js?v=20261119-6"></script>
-<script src="/js/pages/order-form/order-form-module.js?v=20261119-6"></script>
-<script src="/js/pages/dashboard/dashboard-module.js?v=20261119-6"></script>
-<script src="/js/core/auth.js?v=20261119-6"></script>
-<script src="/js/pages/orders/orders-data.js?v=20261119-6"></script>
-<script src="/js/pages/users/users-data.js?v=20261119-6"></script>
-<script src="/js/pages/users/users-module.js?v=20261119-6"></script>
-<script src="/js/pages/inventory/inventory-data.js?v=20261119-6"></script>
-<script src="/js/pages/inventory/inventory-module.js?v=20261119-6"></script>
-<script src="/js/pages/account/account-module.js?v=20261119-6"></script>
-<script src="/js/pages/supplies/supplies-data.js?v=20261119-6"></script>
-<script src="/js/pages/supplies/supplies-dashboard.js?v=20261119-6"></script>
-<script src="/js/pages/supplies/supplies-notices.js?v=20261119-6"></script>
-<script src="/js/pages/supplies/supplies-module.js?v=20261119-6"></script>
-<script src="/js/core/app-shell.js?v=20261119-6"></script>
-<link rel="stylesheet" href="/styles/pages/orders.css?v=20261119-6">
-<link rel="stylesheet" href="/styles/pages/order-form.css?v=20261119-6">
-<link rel="stylesheet" href="/styles/pages/users.css?v=20261119-6">
-<link rel="stylesheet" href="/styles/pages/login.css?v=20261119-6">
-<link rel="stylesheet" href="/styles/pages/stores.css?v=20261119-6">
-<link rel="stylesheet" href="/styles/pages/dashboard.css?v=20261119-6">
-<link rel="stylesheet" href="/styles/pages/inventory.css?v=20261119-6">
-<link rel="stylesheet" href="/styles/pages/supplies.css?v=20261119-6">
+<script src="/js/shared/app-utils.js?v=20261119-7"></script>
+<script src="/js/shared/order-rules.js?v=20261119-7"></script>
+<script src="/js/shared/confirmation-modal.js?v=20261119-7"></script>
+<script src="/js/pages/stores/stores-module.js?v=20261119-7"></script>
+<script src="/js/pages/orders/orders-module.js?v=20261119-7"></script>
+<script src="/js/pages/order-form/order-form-module.js?v=20261119-7"></script>
+<script src="/js/pages/dashboard/dashboard-module.js?v=20261119-7"></script>
+<script src="/js/core/auth.js?v=20261119-7"></script>
+<script src="/js/pages/orders/orders-data.js?v=20261119-7"></script>
+<script src="/js/pages/users/users-data.js?v=20261119-7"></script>
+<script src="/js/pages/users/users-module.js?v=20261119-7"></script>
+<script src="/js/pages/inventory/inventory-data.js?v=20261119-7"></script>
+<script src="/js/pages/inventory/inventory-module.js?v=20261119-7"></script>
+<script src="/js/pages/account/account-module.js?v=20261119-7"></script>
+<script src="/js/pages/supplies/supplies-data.js?v=20261119-7"></script>
+<script src="/js/pages/supplies/supplies-dashboard.js?v=20261119-7"></script>
+<script src="/js/pages/supplies/supplies-notices.js?v=20261119-7"></script>
+<script src="/js/pages/supplies/supplies-module.js?v=20261119-7"></script>
+<script src="/js/pages/sfera-stock/stock-core.js?v=20261119-7"></script>
+<script src="/js/pages/sfera-stock/stock-module.js?v=20261119-7"></script>
+<script src="/js/core/app-shell.js?v=20261119-7"></script>
+<link rel="stylesheet" href="/styles/pages/orders.css?v=20261119-7">
+<link rel="stylesheet" href="/styles/pages/order-form.css?v=20261119-7">
+<link rel="stylesheet" href="/styles/pages/users.css?v=20261119-7">
+<link rel="stylesheet" href="/styles/pages/login.css?v=20261119-7">
+<link rel="stylesheet" href="/styles/pages/stores.css?v=20261119-7">
+<link rel="stylesheet" href="/styles/pages/dashboard.css?v=20261119-7">
+<link rel="stylesheet" href="/styles/pages/inventory.css?v=20261119-7">
+<link rel="stylesheet" href="/styles/pages/supplies.css?v=20261119-7">
+<link rel="stylesheet" href="/styles/pages/sfera-stock.css?v=20261119-7">
 <script>
-window.APP_VERSION = '20261119-6';
+window.APP_VERSION = '20261119-7';
 </script>
 <style>
   * { font-family: 'Inter', system-ui, sans-serif; }
@@ -172,6 +175,41 @@ window.APP_VERSION = '20261119-6';
         <i data-lucide="send" class="w-5 h-5 shrink-0"></i>
         <span class="sidebar-text text-sm whitespace-nowrap">Meus pedidos de suprimentos</span>
         <span id="badge-sup-minhas" class="sidebar-text hidden-badge ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold items-center justify-center" style="display:none"></span>
+      </a>
+      <div id="nav-estoque-sfera-titulo" class="sidebar-text px-2 pt-3 pb-1" data-resource="estoque-sfera">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Estoque Sfera</span>
+      </div>
+      <a id="nav-ess-painel" href="/estoque-sfera?aba=painel" data-route="/estoque-sfera" data-resource="estoque-sfera" data-sup-aba="painel" data-sup-default class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="layout-grid" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Painel</span>
+      </a>
+      <a id="nav-ess-entrada" href="/estoque-sfera?aba=entrada" data-route="/estoque-sfera" data-resource="estoque-sfera" data-sup-aba="entrada"  class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="download" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Entrada de nota</span>
+      </a>
+      <a id="nav-ess-saida" href="/estoque-sfera?aba=saida" data-route="/estoque-sfera" data-resource="estoque-sfera" data-sup-aba="saida"  class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="upload" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Saída de mercadoria</span>
+      </a>
+      <a id="nav-ess-pedido" href="/estoque-sfera?aba=pedido" data-route="/estoque-sfera" data-resource="estoque-sfera" data-sup-aba="pedido"  class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="shopping-cart" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Pedido de compra</span>
+      </a>
+      <a id="nav-ess-estoque" href="/estoque-sfera?aba=estoque" data-route="/estoque-sfera" data-resource="estoque-sfera" data-sup-aba="estoque"  class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="package" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Estoque</span>
+      </a>
+      <a id="nav-ess-historico" href="/estoque-sfera?aba=historico" data-route="/estoque-sfera" data-resource="estoque-sfera" data-sup-aba="historico"  class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="list" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Movimentações</span>
+      </a>
+      <a id="nav-ess-consumo" href="/estoque-sfera?aba=consumo" data-route="/estoque-sfera" data-resource="estoque-sfera" data-sup-aba="consumo"  class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="bar-chart-3" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Consumo</span>
+      </a>
+      <a id="nav-ess-cadastros" href="/estoque-sfera?aba=cadastros" data-route="/estoque-sfera" data-resource="estoque-sfera" data-sup-aba="cadastros"  class="nav-item flex items-center gap-3 px-2 py-2 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer">
+        <i data-lucide="settings" class="w-5 h-5 shrink-0"></i>
+        <span class="sidebar-text text-sm whitespace-nowrap">Cadastros</span>
       </a>
       <div id="nav-admin" class="sidebar-text px-2 pt-3 pb-1 flex items-center gap-2">
         <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Administração</span>
@@ -528,6 +566,7 @@ const RECURSOS_ACESSO = [
   { key: 'stock-checks-admin' },
   { key: 'suprimentos' },
   { key: 'suprimentos-admin' },
+  { key: 'estoque-sfera' },
 ];
 
 function clearRuntimeErrorBanner() {
