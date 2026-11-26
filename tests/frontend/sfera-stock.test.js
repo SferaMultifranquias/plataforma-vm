@@ -82,4 +82,12 @@ test('migration do Estoque Sfera: RLS só admin e sem acesso anônimo', () => {
   assert.ok(/revoke all on public\.alm_itens, public\.alm_entradas, public\.alm_saidas, public\.alm_pedidos, public\.alm_config from anon/.test(sql));
 });
 
+test('pedido de compra baixa em PDF e Excel, com bibliotecas protegidas por SRI', () => {
+  const code = read('public/js/pages/sfera-stock/stock-module.js');
+  assert.ok(code.includes('async function baixarPedidoPdf(p)'));
+  assert.ok(code.includes('async function baixarPedidoExcel(p)'));
+  assert.ok(/JSPDF_SRI = 'sha384-/.test(code) && /AUTOTABLE_SRI = 'sha384-/.test(code));
+  assert.ok(code.includes('data-ppdf') && code.includes('data-pxlsx') && code.includes('id="pv-pdf"') && code.includes('id="pv-xlsx"'));
+});
+
 console.log('Sfera stock tests passed.');

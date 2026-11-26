@@ -631,7 +631,7 @@ function viewPedido(m) {
   ${peds.length ? `<div class="tbl-wrap"><table><thead><tr><th>Nº</th><th>Data</th><th>Fornecedor</th><th class="n">Itens</th><th class="n">Total estimado</th><th>Status</th><th></th></tr></thead><tbody>
   ${peds.map((p) => `<tr data-ped="${esc(p.id)}"><td class="mono">${esc(p.numero)}</td><td>${dBR(p.data)}</td><td>${esc(p.fornecedor)}</td><td class="n">${p.itens.length}</td><td class="n">${brl(p.total)}</td>
     <td><select class="i" data-pstatus ${ro ? 'disabled' : ''}>${Object.entries(ST_PED).map(([k, v]) => `<option value="${k}" ${k === p.status ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
-    <td><div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn ghost" data-pver>Ver / copiar</button>${!ro && p.status !== 'recebido' && p.status !== 'cancelado' ? '<button class="btn ghost" data-preceber>Dar entrada</button>' : ''}${ro ? '' : '<button class="btn ghost danger" data-pdel aria-label="Excluir pedido">✕</button>'}</div></td></tr>`).join('')}
+    <td><div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn ghost" data-pver>Ver</button><button class="btn ghost" data-ppdf>PDF</button><button class="btn ghost" data-pxlsx>Excel</button>${!ro && p.status !== 'recebido' && p.status !== 'cancelado' ? '<button class="btn ghost" data-preceber>Dar entrada</button>' : ''}${ro ? '' : '<button class="btn ghost danger" data-pdel aria-label="Excluir pedido">✕</button>'}</div></td></tr>`).join('')}
   </tbody></table></div>` : '<div class="empty">Nenhum pedido gerado ainda. Clique em "Gerar pedido" num fornecedor acima.</div>'}</div>`;
 
   $$('[data-pst]', m).forEach((b) => b.onclick = () => { const s = b.dataset.pst; U.pedSt = U.pedSt.includes(s) ? U.pedSt.filter((x) => x !== s) : [...U.pedSt, s]; render(); });
@@ -660,13 +660,15 @@ function viewPedido(m) {
       const refPd = S.db.collection('pedidos').doc();
       await write(() => refPd.set(body));
       ls.forEach((x) => { delete S.ped[x.r.id]; });
-      toast(`Pedido ${body.numero} gerado para ${f}`);
+      toast(`Pedido ${body.numero} gerado para ${f}. Baixe em PDF ou Excel.`);
       verPedido(body);
     } catch (e) { b.disabled = false; showErr(e); }
   });
   $$('tr[data-ped]', m).forEach((tr) => {
     const p = S.pedidos.find((x) => x.id === tr.dataset.ped); if (!p) return;
     $('[data-pver]', tr).onclick = () => verPedido(p);
+    $('[data-ppdf]', tr).onclick = (e) => baixarPedido(p, 'pdf', e.currentTarget);
+    $('[data-pxlsx]', tr).onclick = (e) => baixarPedido(p, 'xlsx', e.currentTarget);
     const st = $('[data-pstatus]', tr); st.onchange = async () => { try { await write(() => S.db.doc('pedidos/' + p.id).update({ status: st.value })); toast(`Pedido ${p.numero}: ${ST_PED[st.value]}`); } catch (e) { showErr(e); } };
     const rc = $('[data-preceber]', tr); if (rc) rc.onclick = () => receberPedido(p);
     const dl = $('[data-pdel]', tr); if (dl) dl.onclick = () => confirmBox('Excluir pedido?', `O pedido ${esc(p.numero)} de ${esc(p.fornecedor)} será apagado. O estoque não muda.`, 'Excluir', async () => { await write(() => S.db.doc('pedidos/' + p.id).delete()); toast('Pedido excluído'); });
@@ -682,6 +684,131 @@ function textoPedido(p) {
   const tot = p.itens.reduce((a, l) => a + (l.custo || 0) * l.qtd, 0);
   return [`PEDIDO DE COMPRA${p.numero ? ' ' + p.numero : ''} — SFERA`, `Data: ${dBR(p.data)}`, p.fornecedor ? `Fornecedor: ${p.fornecedor}` : null, '', ...linhas, '', tot ? `Total estimado: ${brl(tot)}` : null, 'Entrega: ADM / Suprimentos', 'Por favor, confirmar disponibilidade, valor e prazo de entrega.'].filter((x) => x !== null).join('\n');
 }
+
+/* ---------- Pedido de compra em PDF e Excel ---------- */
+const JSPDF_SRC = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+const JSPDF_SRI = 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk';
+const AUTOTABLE_SRC = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js';
+const AUTOTABLE_SRI = 'sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3';
+const ENTREGA_PEDIDO = 'Sfera Multifranquias · ADM / Suprimentos';
+function carregarScript(src, sri) {
+  return new Promise((ok, ko) => {
+    const el = document.createElement('script');
+    el.src = src; el.integrity = sri; el.crossOrigin = 'anonymous';
+    el.onload = ok; el.onerror = () => ko(new Error('Não foi possível carregar o gerador de PDF. Verifique a internet.'));
+    document.head.appendChild(el);
+  });
+}
+async function jsPdfPronto() {
+  if (!(global.jspdf && global.jspdf.jsPDF)) await carregarScript(JSPDF_SRC, JSPDF_SRI);
+  if (!global.jspdf.jsPDF.API.autoTable) await carregarScript(AUTOTABLE_SRC, AUTOTABLE_SRI);
+  return global.jspdf.jsPDF;
+}
+/* Dados do fornecedor no cadastro de Suprimentos (CNPJ, contato), quando existir. */
+async function dadosFornecedor(nome) {
+  if (!nome || !SB) return null;
+  try {
+    const { data } = await SB.from('sup_fornecedores').select('nome,cnpj,contato,telefone,email').ilike('nome', nome.trim()).limit(1);
+    return (data && data[0]) || null;
+  } catch (e) { return null; }
+}
+function linhasPedido(p) {
+  return (p.itens || []).map((l, i) => {
+    const it = S.items[l.item] || { nome: 'item excluído', und: '' };
+    const custo = l.custo == null || l.custo === '' ? null : Number(l.custo);
+    const qtd = Number(l.qtd) || 0;
+    return { n: i + 1, nome: it.nome, und: it.und || '', qtd, custo, total: custo == null ? null : Math.round(custo * qtd * 100) / 100 };
+  });
+}
+const arqPedido = (p, ext) => `Pedido_${p.numero || 'compra'}_${(Core.norm(p.fornecedor || 'fornecedor').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'fornecedor').slice(0, 30)}.${ext}`;
+async function baixarPedidoPdf(p) {
+  const JsPDF = await jsPdfPronto();
+  const forn = await dadosFornecedor(p.fornecedor);
+  const linhas = linhasPedido(p);
+  const total = linhas.reduce((a, l) => a + (l.total || 0), 0);
+  const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth(); const M = 14;
+  const money = (v) => v == null ? '-' : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  doc.setFillColor(15, 23, 42); doc.rect(0, 0, W, 26, 'F');
+  doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text('SFERA MULTIFRANQUIAS', M, 11);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.text('Suprimentos  ·  Pedido de compra', M, 18);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text('Pedido Nº ' + (p.numero || ''), W - M, 11, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.text('Data: ' + dBR(p.data), W - M, 18, { align: 'right' });
+  const y = 34; const half = (W - 2 * M - 6) / 2;
+  const bloco = (x, titulo, ls) => {
+    doc.setDrawColor(210); doc.setFillColor(247, 248, 250); doc.roundedRect(x, y, half, 28, 2, 2, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(110); doc.text(titulo.toUpperCase(), x + 4, y + 6);
+    doc.setTextColor(30);
+    ls.filter(Boolean).slice(0, 4).forEach((t, i) => { doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.setFontSize(i === 0 ? 11 : 9); doc.text(doc.splitTextToSize(String(t), half - 8)[0], x + 4, y + 12.5 + i * 4.8); });
+  };
+  bloco(M, 'Fornecedor', [p.fornecedor || 'A definir', forn && forn.cnpj ? 'CNPJ: ' + forn.cnpj : null,
+    forn && (forn.contato || forn.telefone) ? [forn.contato, forn.telefone].filter(Boolean).join(' · ') : null, forn && forn.email ? forn.email : null]);
+  bloco(M + half + 6, 'Entregar em', ['Sfera Multifranquias', 'ADM / Suprimentos', 'Status: ' + (ST_PED[p.status] || p.status || '')]);
+  doc.autoTable({
+    startY: y + 34, margin: { left: M, right: M },
+    head: [['#', 'Produto', 'Und', 'Qtd', 'Valor unit.', 'Valor total']],
+    body: linhas.map((l) => [String(l.n), l.nome, l.und, Number(l.qtd).toLocaleString('pt-BR', { maximumFractionDigits: 3 }), money(l.custo), money(l.total)]),
+    foot: [[{ content: linhas.length + (linhas.length === 1 ? ' item' : ' itens'), colSpan: 4, styles: { halign: 'left', fontStyle: 'normal' } }, { content: 'TOTAL', styles: { halign: 'right' } }, { content: money(total), styles: { halign: 'right' } }]],
+    theme: 'grid',
+    styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.2, lineColor: [220, 223, 228], lineWidth: 0.2, textColor: 30 },
+    headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+    footStyles: { fillColor: [238, 241, 245], textColor: 20, fontStyle: 'bold', fontSize: 10 },
+    alternateRowStyles: { fillColor: [250, 251, 252] },
+    columnStyles: { 0: { cellWidth: 9, halign: 'center' }, 2: { cellWidth: 14, halign: 'center' }, 3: { cellWidth: 16, halign: 'right' }, 4: { cellWidth: 27, halign: 'right' }, 5: { cellWidth: 29, halign: 'right' } },
+  });
+  const yf = doc.lastAutoTable.finalY + 8;
+  doc.setFontSize(8.5); doc.setTextColor(90);
+  doc.text(doc.splitTextToSize('Valores de referência. Favor confirmar disponibilidade, valor e prazo de entrega, e enviar a nota fiscal com o número deste pedido.', W - 2 * M), M, yf);
+  const pages = doc.internal.getNumberOfPages();
+  for (let pg = 1; pg <= pages; pg++) {
+    doc.setPage(pg); const H = doc.internal.pageSize.getHeight();
+    doc.setFontSize(8); doc.setTextColor(140);
+    doc.text('Sfera Multifranquias · Pedido ' + (p.numero || '') + ' · ' + (p.fornecedor || ''), M, H - 8);
+    doc.text('Página ' + pg + ' de ' + pages, W - M, H - 8, { align: 'right' });
+  }
+  doc.save(arqPedido(p, 'pdf'));
+}
+async function baixarPedidoExcel(p) {
+  const X = global.XLSX;
+  if (!X || !X.utils) throw new Error('Não foi possível carregar o gerador de Excel. Verifique a internet e atualize a página.');
+  const forn = await dadosFornecedor(p.fornecedor);
+  const linhas = linhasPedido(p);
+  const total = Math.round(linhas.reduce((a, l) => a + (l.total || 0), 0) * 100) / 100;
+  const aoa = [
+    ['SFERA MULTIFRANQUIAS · Pedido de compra'],
+    ['Pedido Nº', p.numero || ''],
+    ['Data', dBR(p.data)],
+    ['Fornecedor', p.fornecedor || ''],
+    ['CNPJ', forn && forn.cnpj ? forn.cnpj : ''],
+    ['Contato', forn ? [forn.contato, forn.telefone, forn.email].filter(Boolean).join(' · ') : ''],
+    ['Entregar em', ENTREGA_PEDIDO],
+    [],
+    ['#', 'Produto', 'Und', 'Qtd', 'Valor unit.', 'Valor total'],
+  ];
+  const primeira = aoa.length;
+  linhas.forEach((l) => aoa.push([l.n, l.nome, l.und, l.qtd, l.custo == null ? '' : l.custo, l.total == null ? '' : l.total]));
+  aoa.push(['', '', '', '', 'TOTAL', total]);
+  aoa.push([]);
+  aoa.push(['Valores de referência. Favor confirmar disponibilidade, valor e prazo de entrega.']);
+  const ws = X.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 14 }, { wch: 46 }, { wch: 8 }, { wch: 10 }, { wch: 14 }, { wch: 16 }];
+  for (let r = primeira; r <= primeira + linhas.length; r++) {
+    [[3, '#,##0.###'], [4, '"R$" #,##0.00'], [5, '"R$" #,##0.00']].forEach(([c, z]) => {
+      const cel = ws[X.utils.encode_cell({ r, c })];
+      if (cel && cel.t === 'n') cel.z = z;
+    });
+  }
+  const wb = X.utils.book_new();
+  X.utils.book_append_sheet(wb, ws, 'Pedido');
+  X.writeFile(wb, arqPedido(p, 'xlsx'));
+}
+async function baixarPedido(p, formato, botao) {
+  if (botao) botao.disabled = true;
+  try {
+    if (formato === 'xlsx') await baixarPedidoExcel(p); else await baixarPedidoPdf(p);
+    toast(`Pedido ${p.numero} baixado em ${formato === 'xlsx' ? 'Excel' : 'PDF'}`);
+  } catch (e) { showErr(e); } finally { if (botao) botao.disabled = false; }
+}
 function verPedido(p) {
   const txt = textoPedido(p);
   dialog(`<div class="dh"><h2>Pedido ${esc(p.numero)}</h2><span class="pill sai">${esc(ST_PED[p.status] || p.status)}</span><span class="spacer"></span><button class="btn ghost" data-close aria-label="Fechar">✕</button></div>
@@ -690,8 +817,10 @@ function verPedido(p) {
   ${p.itens.map((l) => { const it = S.items[l.item] || { nome: 'item excluído', und: '' }; return `<tr><td>${esc(it.nome)}</td><td class="n">${num(l.qtd, 2)} <span class="muted small">${esc(it.und)}</span></td><td class="n">${l.custo ? brl(l.custo) : '—'}</td><td class="n">${l.custo ? brl(l.custo * l.qtd) : '—'}</td></tr>`; }).join('')}
   </tbody></table></div><div class="total-bar"><span>Total estimado <b>${brl(p.total)}</b></span></div>
   <label class="f">Texto para enviar ao fornecedor<textarea class="i" id="pv-txt" style="min-height:180px;font-family:var(--mono);font-size:12.5px">${esc(txt)}</textarea></label></div>
-  <div class="df"><button class="btn" data-close>Fechar</button><button class="btn pri" id="pv-copy">Copiar texto</button></div>`, (d) => {
+  <div class="df"><button class="btn" data-close>Fechar</button><span class="spacer"></span><button class="btn" id="pv-copy">Copiar texto</button><button class="btn pri" id="pv-xlsx">Baixar Excel</button><button class="btn pri" id="pv-pdf">Baixar PDF</button></div>`, (d) => {
     $('#pv-copy', d).onclick = () => copyText($('#pv-txt', d).value, 'Pedido copiado. Cole no WhatsApp ou no e-mail do fornecedor.');
+    $('#pv-pdf', d).onclick = (e) => baixarPedido(p, 'pdf', e.currentTarget);
+    $('#pv-xlsx', d).onclick = (e) => baixarPedido(p, 'xlsx', e.currentTarget);
   });
 }
 function receberPedido(p) {
