@@ -607,7 +607,6 @@ function viewPedido(m) {
     const n = lst.filter((r) => { const l = pedLinha(r); return l.on && parseNumLoose(l.qtd) > 0; }).length;
     return `<div class="card stack" data-forn="${esc(f)}"><div class="row"><h2>${esc(f)}</h2>${f === SEM_FORN ? '<span class="muted small">Defina o fornecedor na linha para incluir no pedido</span>' : ''}<span class="spacer"></span>
       <span class="muted small">${n} ${n === 1 ? 'item' : 'itens'} · <b>${brl(tot)}</b>${temSemCusto ? ' + itens sem custo' : ''}</span>
-      <button class="btn" data-copy="${esc(f)}" ${n ? '' : 'disabled'}>Copiar pedido</button>
       ${f !== SEM_FORN && !ro ? `<button class="btn pri" data-gerar="${esc(f)}" ${n ? '' : 'disabled'}>Gerar pedido</button>` : ''}</div>
       <div class="tbl-wrap"><table class="lines"><thead><tr><th style="width:36px"></th><th>Item</th><th>Status</th><th class="n">Saldo</th><th class="n">Mínimo</th><th class="n">Sugerido</th><th class="n" style="width:110px">Pedir</th><th class="n">Custo unit.</th><th class="n">Total</th><th style="min-width:170px">Fornecedor</th></tr></thead><tbody>
       ${lst.map((r) => { const l = pedLinha(r); const q = parseNumLoose(l.qtd) || 0; return `<tr data-id="${r.id}">
@@ -650,7 +649,6 @@ function viewPedido(m) {
     };
   });
   const linhasDe = (f) => grupos[f].map((r) => ({ r, q: parseNumLoose(S.ped[r.id].qtd) || 0, on: S.ped[r.id].on })).filter((x) => x.on && x.q > 0);
-  $$('[data-copy]', m).forEach((b) => b.onclick = () => { const f = b.dataset.copy; const ls = linhasDe(f); copyText(textoPedido({ numero: '', data: todayIso(), fornecedor: f === SEM_FORN ? '' : f, itens: ls.map((x) => ({ item: x.r.id, qtd: x.q, custo: x.r.custo })) }), 'Pedido copiado. Cole no WhatsApp ou no e-mail do fornecedor.'); });
   $$('[data-gerar]', m).forEach((b) => b.onclick = async () => {
     const f = b.dataset.gerar; const ls = linhasDe(f); if (!ls.length) return;
     b.disabled = true;
