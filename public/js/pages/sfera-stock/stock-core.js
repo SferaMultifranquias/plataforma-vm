@@ -128,7 +128,123 @@ var Core = (() => {
     };
   }
 
-  return { compute, porMes, ultimosMeses, similar, parseNFe, norm, isoOf, toDate, daysBetween, monthKey, DEFAULT_PARAMS, ALERTA };
+  /* ---- DANFE em PDF ----
+   * Recebe os pedaços de texto do PDF com posição ({ str, x, y, w }; y cresce para baixo e cada página
+   * soma 10000) e devolve o mesmo formato de parseNFe. Número, série e CNPJ vêm da chave de acesso,
+   * que é o dado mais confiável da DANFE; os itens vêm das linhas do quadro de produtos. */
+  const numBR = (s) => { const v = parseFloat(String(s || '').replace(/\./g, '').replace(',', '.')); return Number.isFinite(v) ? v : 0; };
+  function chaveValida(ch) {
+    if (!/^\d{6}[0-9A-Z]{12}\d{26}$/.test(ch)) return false;
+    let soma = 0, peso = 2;
+    for (let i = 42; i >= 0; i--) { soma += (ch.charCodeAt(i) - 48) * peso; peso = peso === 9 ? 2 : peso + 1; }
+    const r = soma % 11; const dv = r < 2 ? 0 : 11 - r;
+    return dv === Number(ch[43]);
+  }
+  function linhasPdf(items) {
+    const ord = items.filter((t) => t && String(t.str || '').trim()).slice().sort((a, b) => a.y - b.y || a.x - b.x);
+    const linhas = [];
+    ord.forEach((t) => {
+      const l = linhas.find((x) => Math.abs(x.y - t.y) <= 2.5);
+      if (l) l.its.push(t); else linhas.push({ y: t.y, its: [t] });
+    });
+    linhas.forEach((l) => {
+      l.its.sort((a, b) => a.x - b.x);
+      l.x = l.its[0].x;
+      l.text = l.its.map((t) => String(t.str).trim()).join(' ').replace(/\s+/g, ' ').trim();
+    });
+    return linhas.sort((a, b) => a.y - b.y);
+  }
+  function parseDanfe(items) {
+    const lns = linhasPdf(items || []);
+    if (!lns.length) throw new Error('Este PDF não tem texto (parece uma imagem escaneada). Use o XML da nota ou digite os itens.');
+    const up = (s) => norm(s).toUpperCase();
+    /* Chave de acesso: 44 caracteres, geralmente em grupos de 4 */
+    let chave = '';
+    for (const l of lns) {
+      const m = l.text.replace(/[\s.\-/]/g, '').toUpperCase().match(/\d{6}[0-9A-Z]{12}\d{26}/g) || [];
+      const ok = m.find(chaveValida); if (ok) { chave = ok; break; }
+    }
+    if (!chave) {
+      /* Chave quebrada em duas linhas: junta linhas vizinhas que só têm números */
+      const soNum = lns.map((l) => l.text.replace(/[\s.\-/]/g, '').toUpperCase());
+      for (let i = 0; i < soNum.length - 1 && !chave; i++) {
+        if (!/^[0-9A-Z]{8,}$/.test(soNum[i]) || !/^[0-9A-Z]{8,}$/.test(soNum[i + 1])) continue;
+        const s = soNum[i] + soNum[i + 1];
+        for (let k = 0; k + 44 <= s.length; k++) {
+          const c = s.slice(k, k + 44);
+          if (c.slice(20, 22) === '55' && /^(0[1-9]|1[0-2])$/.test(c.slice(4, 6)) && chaveValida(c)) { chave = c; break; }
+        }
+      }
+    }
+    if (!chave) throw new Error('Não encontrei a chave de acesso neste PDF. Confira se é a DANFE de uma NF-e, ou use o XML.');
+    /* Valor logo abaixo de um rótulo (mesma coluna) */
+    const abaixo = (re, valRe) => {
+      for (const it of items) {
+        if (!re.test(up(it.str))) continue;
+        const x0 = it.x - 4, x1 = it.x + Math.max(it.w || 0, 40) + 4;
+        const cands = items.filter((o) => o.y > it.y + 1 && o.y < it.y + 22 && o.x + (o.w || 0) >= x0 && o.x <= x1 && valRe.test(String(o.str).trim()))
+          .sort((a, b) => a.y - b.y || Math.abs(a.x - it.x) - Math.abs(b.x - it.x));
+        if (cands.length) return String(cands[0].str).trim().match(valRe)[0];
+      }
+      return '';
+    };
+    const dataBr = abaixo(/DATA (DA |DE )?EMISSAO/, /\d{2}\/\d{2}\/\d{4}/);
+    const emissao = dataBr ? dataBr.split('/').reverse().join('-') : '';
+    const vNota = numBR(abaixo(/VALOR TOTAL DA NOTA/, /\d{1,3}(\.\d{3})*,\d{2}/));
+    /* Emitente: o canhoto traz "RECEBEMOS DE <EMITENTE> OS PRODUTOS..." */
+    const tudo = lns.map((l) => l.text).join(' ');
+    const mRec = tudo.match(/RECEBEMOS DE\s+(.+?)\s+OS PRODUTOS/i);
+    let razao = mRec ? mRec[1].trim() : '';
+    if (!razao) {
+      const rot = items.find((t) => /IDENTIFICACAO DO EMITENTE/.test(up(t.str)));
+      const nome = rot && items.filter((o) => o.y > rot.y + 1 && o.y < rot.y + 30 && o.x >= rot.x - 10 && o.x < rot.x + 150 && /[A-Za-z]{3}/.test(o.str))
+        .sort((a, b) => a.y - b.y || a.x - b.x)[0];
+      if (nome) razao = String(nome.str).trim();
+    }
+    /* Itens: linhas com NCM (8 dígitos), CST, CFOP, unidade, quantidade, valor unitário e total */
+    const N = '(\\d{1,3}(?:\\.\\d{3})*,\\d+|\\d+,\\d+|\\d+)';
+    const reItem = new RegExp('^(\\S+)(?:\\s+(.+?))?\\s+(\\d{8}|\\d{4}\\.\\d{2}\\.\\d{2})\\s+(\\S{2,5})\\s+([1-7]\\d{3})\\s+([A-Za-z][A-Za-z0-9]{0,5})\\s+' + N + '\\s+' + N + '\\s+' + N + '(?:\\s|$)');
+    const pagina = (y) => Math.floor(y / 10000);
+    const colunas = (re) => items.filter((t) => re.test(up(t.str)));
+    const colDesc = colunas(/^DESCRICAO/), colNcm = colunas(/^NCM/);
+    const naColunaDesc = (l) => {
+      const d = colDesc.find((t) => pagina(t.y) === pagina(l.y)) || colDesc[0];
+      const n = colNcm.find((t) => pagina(t.y) === pagina(l.y)) || colNcm[0];
+      return d && n ? l.x >= d.x - 8 && l.x < n.x - 2 : false;
+    };
+    /* Linhas de item valem em qualquer parte da DANFE, menos depois de "Dados adicionais" na mesma página */
+    const fimProdutos = /DADOS ADICIONAIS|CALCULO DO ISSQN|INFORMACOES COMPLEMENTARES/;
+    const itens = []; let fora = false, pag = -1, ult = null, ultY = 0, solta = null;
+    lns.forEach((l) => {
+      const u = up(l.text);
+      if (pagina(l.y) !== pag) { pag = pagina(l.y); fora = false; ult = null; solta = null; }
+      if (fimProdutos.test(u)) { fora = true; ult = null; return; }
+      if (fora) return;
+      const m = l.text.match(reItem);
+      if (m) {
+        let desc = (m[2] || '').trim();
+        /* Descrição em linha própria, um pouco acima dos números */
+        if (!desc && solta && l.y - solta.y < 14) { desc = solta.text; if (solta.dono) solta.dono.xProd = solta.dono.xProd.slice(0, -solta.text.length).trim(); }
+        ult = { cProd: m[1], xProd: desc, uCom: m[6], qCom: numBR(m[7]), vUnCom: numBR(m[8]), vProd: numBR(m[9]) };
+        itens.push(ult); ultY = l.y; solta = null; return;
+      }
+      /* Descrição quebrada em mais de uma linha: junta só texto na coluna da descrição, logo abaixo do item */
+      if (naColunaDesc(l) && !/^(CODIGO|DESCRICAO)/.test(u)) {
+        const dono = ult && l.y - ultY < 14 ? ult : null;
+        if (dono) { dono.xProd = (dono.xProd + ' ' + l.text).trim(); ultY = l.y; }
+        solta = { text: l.text, y: l.y, dono };
+      } else solta = null;
+    });
+    itens.forEach((p) => { if (!p.xProd) p.xProd = p.cProd; });
+    if (!itens.length) throw new Error('Li a DANFE, mas não consegui separar os itens. Use o XML da nota ou digite os itens.');
+    return {
+      nf: String(Number(chave.slice(25, 34))), serie: String(Number(chave.slice(22, 25))), emissao,
+      fornecedor: razao, razao, cnpj: chave.slice(6, 20), chave,
+      valorNota: vNota || Math.round(itens.reduce((a, p) => a + p.vProd, 0) * 100) / 100, itens,
+    };
+  }
+
+  return { compute, porMes, ultimosMeses, similar, parseNFe, parseDanfe, chaveValida, norm, isoOf, toDate, daysBetween, monthKey, DEFAULT_PARAMS, ALERTA };
 })();
 
   global.SferaStockCore = Core;

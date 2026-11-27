@@ -321,14 +321,14 @@ function viewEntrada(m) {
   if (!S.nf) S.nf = newNF();
   const N = S.nf; const isNF = N.tipo === 'compra';
   m.innerHTML = `
-  <div class="top"><div><h1>Entrada de nota</h1><p>Lance o recebimento de mercadoria. Importe o XML da NF-e ou digite os itens.</p></div>
+  <div class="top"><div><h1>Entrada de nota</h1><p>Lance o recebimento de mercadoria. Importe o XML ou a DANFE (PDF) da NF-e, ou digite os itens.</p></div>
   <div class="row"><button class="btn" id="nf-limpar">Limpar formulário</button></div></div>
   ${readOnlyNote()}
   ${N.pedidoId ? `<div class="banner info">Recebimento do pedido <b>${esc(N.pedidoNum || '')}</b>. Confira as quantidades e o custo da nota. Ao registrar, o pedido fica como recebido.</div>` : ''}
   <div class="card stack">
     ${isNF ? `<div class="drop" id="nf-drop"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--accent)"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
-      <div style="flex:1;min-width:200px"><b>Importar XML da NF-e</b><div class="muted small">Arraste o arquivo .xml aqui ou escolha no computador. Número, fornecedor, data e itens são preenchidos sozinhos.</div></div>
-      <label class="btn">Escolher XML<input type="file" id="nf-xml" accept=".xml,text/xml,application/xml" hidden></label></div>` : ''}
+      <div style="flex:1;min-width:200px"><b>Importar XML ou DANFE da NF-e</b><div class="muted small">Arraste o arquivo .xml ou o PDF da DANFE aqui, ou escolha no computador. Número, fornecedor, data e itens são preenchidos sozinhos. O XML é mais preciso; com a DANFE, confira os itens antes de registrar.</div></div>
+      <label class="btn">Escolher XML ou DANFE<input type="file" id="nf-xml" accept=".xml,text/xml,application/xml,.pdf,application/pdf" hidden></label></div>` : ''}
     <div class="fgrid">
       <label class="f">Tipo de entrada<select class="i" id="nf-tipo">${Object.entries(TIPOS_ENT).map(([k, v]) => `<option value="${k}" ${k === N.tipo ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
       <label class="f">Data de recebimento<input class="i" type="date" id="nf-data" value="${esc(N.data)}"></label>
@@ -356,12 +356,12 @@ function viewEntrada(m) {
   $('#nf-limpar').onclick = () => { S.nf = newNF(); render(); };
   $('#nf-add').onclick = () => { N.linhas.push(newLinhaNF()); renderNFLines(); const ins = $$('#nf-lines input[data-k="nome"]'); ins[ins.length - 1]?.focus(); };
   $('#nf-save').onclick = saveNF;
-  const xml = $('#nf-xml'); if (xml) xml.onchange = (e) => e.target.files[0] && importXML(e.target.files[0]);
+  const xml = $('#nf-xml'); if (xml) xml.onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; f && importarNota(f); };
   const drop = $('#nf-drop');
   if (drop) {
     drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
     drop.ondragleave = () => drop.classList.remove('over');
-    drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; f && importXML(f); };
+    drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; f && importarNota(f); };
   }
   renderNFLines(); checkDup();
 }
@@ -415,24 +415,40 @@ function nfDocId(N) {
     : ['nf', (N.cnpj || '').replace(/\D/g, '') || Core.norm(N.fornecedor).replace(/ /g, '-'), (N.serie || '0').trim(), N.nf.trim()].join('_');
   return base.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 120);
 }
+/* XML ou DANFE (PDF): decide pelo conteúdo do arquivo, não só pela extensão */
+async function importarNota(file) {
+  let pdf = /\.pdf$/i.test(file.name || '') || file.type === 'application/pdf';
+  try { const ini = new Uint8Array(await file.slice(0, 5).arrayBuffer()); pdf = String.fromCharCode(...ini) === '%PDF-'; } catch (e) { /* usa a extensão */ }
+  if (!pdf) return importXML(file);
+  try {
+    toast('Lendo a DANFE…');
+    const nfe = Core.parseDanfe(await textoDoPdf(file));
+    preencherNota(nfe, 'danfe');
+  } catch (e) { toast(e.message || 'Não consegui ler esta DANFE. Use o XML da nota ou digite os itens.'); }
+}
 async function importXML(file) {
   try {
     const txt = await file.text();
-    const nfe = Core.parseNFe(txt, DOMParser);
-    const N = S.nf;
-    Object.assign(N, { tipo: 'compra', nf: nfe.nf, serie: nfe.serie, fornecedor: nfe.fornecedor, cnpj: nfe.cnpj, chave: nfe.chave, emissao: nfe.emissao, valorNota: nfe.valorNota, importado: true });
-    const its = itemList();
-    N.linhas = nfe.itens.map((p) => {
-      const key = `${nfe.cnpj}|${p.cProd}`;
-      let match = its.find((i) => i.vinculos && i.vinculos[key] != null);
-      let fator = match ? Number(match.vinculos[key]) || 1 : 1;
-      if (!match) { let best = null, bs = 0; its.forEach((i) => { const sc = Core.similar(p.xProd, i.nome); if (sc > bs) { bs = sc; best = i; } }); if (bs >= 0.55) match = best; }
-      return { nome: match ? match.nome : p.xProd, qtd: String(p.qCom).replace('.', ','), custo: p.vUnCom ? p.vUnCom.toFixed(2).replace('.', ',') : '', fator, nfp: p, novo: false, cat: catList()[0] || '', und: (p.uCom || 'UN').toUpperCase() };
-    });
-    render();
-    const sem = N.linhas.filter((l) => !itemByName(l.nome)).length;
-    toast(`NF ${nfe.nf} importada com ${nfe.itens.length} itens${sem ? ` · ${sem} sem vínculo, confira` : ''}`);
+    preencherNota(Core.parseNFe(txt, DOMParser), 'xml');
   } catch (e) { toast(e.message || 'Não consegui ler este XML.'); }
+}
+function preencherNota(nfe, origem) {
+  const N = S.nf;
+  /* Mesmo CNPJ já lançado antes: reaproveita o nome de fornecedor que vocês usam */
+  const anterior = S.entradas.filter((x) => (x.cnpj || '').replace(/\W/g, '') === nfe.cnpj && x.fornecedor).sort((a, b) => (b.data || '').localeCompare(a.data || ''))[0];
+  const fornecedor = anterior ? anterior.fornecedor : nfe.fornecedor;
+  Object.assign(N, { tipo: 'compra', nf: nfe.nf, serie: nfe.serie, fornecedor, cnpj: nfe.cnpj, chave: nfe.chave, emissao: nfe.emissao, valorNota: nfe.valorNota, importado: origem });
+  const its = itemList();
+  N.linhas = nfe.itens.map((p) => {
+    const key = `${nfe.cnpj}|${p.cProd}`;
+    let match = its.find((i) => i.vinculos && i.vinculos[key] != null);
+    let fator = match ? Number(match.vinculos[key]) || 1 : 1;
+    if (!match) { let best = null, bs = 0; its.forEach((i) => { const sc = Core.similar(p.xProd, i.nome); if (sc > bs) { bs = sc; best = i; } }); if (bs >= 0.55) match = best; }
+    return { nome: match ? match.nome : p.xProd, qtd: String(p.qCom).replace('.', ','), custo: p.vUnCom ? p.vUnCom.toFixed(2).replace('.', ',') : '', fator, nfp: p, novo: false, cat: catList()[0] || '', und: (p.uCom || 'UN').toUpperCase() };
+  });
+  render();
+  const sem = N.linhas.filter((l) => !itemByName(l.nome)).length;
+  toast(`NF ${nfe.nf} importada ${origem === 'danfe' ? 'da DANFE' : 'do XML'} com ${nfe.itens.length} itens${sem ? ` · ${sem} sem vínculo, confira` : ''}${origem === 'danfe' ? ' · confira quantidades e valores' : ''}`);
 }
 async function saveNF() {
   const N = S.nf; const msg = $('#nf-msg');
@@ -471,7 +487,7 @@ async function saveNF() {
       }
     }
     const body = { data: N.data, tipo: N.tipo, nf: N.nf.trim(), serie: N.serie.trim(), fornecedor: N.fornecedor.trim(), cnpj: N.cnpj.trim(), chave: N.chave, emissao: N.emissao, obs: N.obs.trim(),
-      itens: itensDoc, valorTotal: itensDoc.reduce((a, l) => a + (l.custo || 0) * l.qtd, 0), criadoPor: S.uid, criadoEm: new Date().toISOString(), origem: N.importado ? 'xml' : 'manual' };
+      itens: itensDoc, valorTotal: itensDoc.reduce((a, l) => a + (l.custo || 0) * l.qtd, 0), criadoPor: S.uid, criadoEm: new Date().toISOString(), origem: N.importado ? (N.importado === 'danfe' ? 'danfe' : 'xml') : 'manual' };
     /* A entrada é o que importa: grava primeiro. Nota de compra usa ID fixo + trava curta,
        então duas pessoas (ou uma nova tentativa) não criam a mesma NF duas vezes. */
     if (N.tipo === 'compra') {
@@ -689,11 +705,11 @@ const JSPDF_SRI = 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoV
 const AUTOTABLE_SRC = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js';
 const AUTOTABLE_SRI = 'sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3';
 const ENTREGA_PEDIDO = 'Sfera Multifranquias · ADM / Suprimentos';
-function carregarScript(src, sri) {
+function carregarScript(src, sri, oQue) {
   return new Promise((ok, ko) => {
     const el = document.createElement('script');
     el.src = src; el.integrity = sri; el.crossOrigin = 'anonymous';
-    el.onload = ok; el.onerror = () => ko(new Error('Não foi possível carregar o gerador de PDF. Verifique a internet.'));
+    el.onload = ok; el.onerror = () => ko(new Error(`Não foi possível carregar ${oQue || 'o gerador de PDF'}. Verifique a internet.`));
     document.head.appendChild(el);
   });
 }
@@ -701,6 +717,30 @@ async function jsPdfPronto() {
   if (!(global.jspdf && global.jspdf.jsPDF)) await carregarScript(JSPDF_SRC, JSPDF_SRI);
   if (!global.jspdf.jsPDF.API.autoTable) await carregarScript(AUTOTABLE_SRC, AUTOTABLE_SRI);
   return global.jspdf.jsPDF;
+}
+/* ---------- Leitura da DANFE (PDF) com pdf.js ---------- */
+const PDFJS_SRC = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+const PDFJS_SRI = 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';
+const PDFJS_WORKER_SRC = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+const PDFJS_WORKER_SRI = 'sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2';
+async function pdfJsPronto() {
+  /* O worker é carregado como script comum (com SRI): o pdf.js usa ele na própria página, sem criar Worker externo */
+  if (!(global.pdfjsWorker && global.pdfjsWorker.WorkerMessageHandler)) await carregarScript(PDFJS_WORKER_SRC, PDFJS_WORKER_SRI, 'o leitor de PDF');
+  if (!global.pdfjsLib) await carregarScript(PDFJS_SRC, PDFJS_SRI, 'o leitor de PDF');
+  return global.pdfjsLib;
+}
+async function textoDoPdf(file) {
+  const pdfjs = await pdfJsPronto();
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false, disableFontFace: true, verbosity: 0 }).promise;
+  const itens = [];
+  try {
+    for (let p = 1; p <= Math.min(doc.numPages, 30); p++) {
+      const page = await doc.getPage(p); const alt = page.getViewport({ scale: 1 }).height;
+      const tc = await page.getTextContent();
+      tc.items.forEach((t) => { if (t.str && t.str.trim()) itens.push({ str: t.str, x: t.transform[4], y: (p - 1) * 10000 + (alt - t.transform[5]), w: t.width }); });
+    }
+  } finally { doc.destroy(); }
+  return itens;
 }
 /* Dados do fornecedor no cadastro de Suprimentos (CNPJ, contato), quando existir. */
 async function dadosFornecedor(nome) {
