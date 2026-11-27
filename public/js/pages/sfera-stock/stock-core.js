@@ -159,11 +159,21 @@ var Core = (() => {
     if (!lns.length) throw new Error('Este PDF não tem texto (parece uma imagem escaneada). Use o XML da nota ou digite os itens.');
     const up = (s) => norm(s).toUpperCase();
     /* Chave de acesso: 44 caracteres, geralmente em grupos de 4 */
+    /* Procura em cada pedaço de texto e depois em cada linha, testando todas as janelas de 44 caracteres:
+       a chave pode estar grudada em outro número da mesma altura (ex.: "Nº 000.007.273"). */
+    const acharChave = (txt) => {
+      const runs = String(txt).replace(/[\s.\-/]/g, '').toUpperCase().match(/[0-9A-Z]{44,}/g) || [];
+      for (const r of runs) {
+        for (let k = 0; k + 44 <= r.length; k++) {
+          const c = r.slice(k, k + 44);
+          if (/^(55|65)$/.test(c.slice(20, 22)) && /^(0[1-9]|1[0-2])$/.test(c.slice(4, 6)) && chaveValida(c)) return c;
+        }
+      }
+      return '';
+    };
     let chave = '';
-    for (const l of lns) {
-      const m = l.text.replace(/[\s.\-/]/g, '').toUpperCase().match(/\d{6}[0-9A-Z]{12}\d{26}/g) || [];
-      const ok = m.find(chaveValida); if (ok) { chave = ok; break; }
-    }
+    for (const t of items) { chave = acharChave(t.str); if (chave) break; }
+    for (let i = 0; !chave && i < lns.length; i++) chave = acharChave(lns[i].text);
     if (!chave) {
       /* Chave quebrada em duas linhas: junta linhas vizinhas que só têm números */
       const soNum = lns.map((l) => l.text.replace(/[\s.\-/]/g, '').toUpperCase());
@@ -203,7 +213,7 @@ var Core = (() => {
     }
     /* Itens: linhas com NCM (8 dígitos), CST, CFOP, unidade, quantidade, valor unitário e total */
     const N = '(\\d{1,3}(?:\\.\\d{3})*,\\d+|\\d+,\\d+|\\d+)';
-    const reItem = new RegExp('^(\\S+)(?:\\s+(.+?))?\\s+(\\d{8}|\\d{4}\\.\\d{2}\\.\\d{2})\\s+(\\S{2,5})\\s+([1-7]\\d{3})\\s+([A-Za-z][A-Za-z0-9]{0,5})\\s+' + N + '\\s+' + N + '\\s+' + N + '(?:\\s|$)');
+    const reItem = new RegExp('^(\\S+)(?:\\s+(.+?))?\\s+(\\d{8}|\\d{4}\\.\\d{2}\\.\\d{2})\\s+(\\S{2,5})\\s+([1-7]\\.?\\d{3})\\s+([A-Za-z][A-Za-z0-9]{0,5})\\s+' + N + '\\s+' + N + '\\s+' + N + '(?:\\s|$)');
     const pagina = (y) => Math.floor(y / 10000);
     const colunas = (re) => items.filter((t) => re.test(up(t.str)));
     const colDesc = colunas(/^DESCRICAO/), colNcm = colunas(/^NCM/);

@@ -134,6 +134,23 @@ test('DANFE: canhoto dá o emitente, descrição em duas linhas e quantidade com
   assert.equal(n.itens[1].vUnCom, 0.0296);
 });
 
+test('DANFE: chave na mesma altura do número da nota e CFOP com ponto (6.101)', () => {
+  const L = (y, cells) => cells.map(([x, str]) => ({ str, x, y, w: str.length * 3 }));
+  const its = [
+    ...L(18.9, [[13.5, 'Recebemos de GRAFICA EXEMPLO LTDA os produtos e/ou serviços constantes na Nota Fiscal Eletrônica indicada abaixo.']]),
+    ...L(135.9, [[328.3, '3526 1112 3456 7800 0190 5500 1000 0123 4510 0012 3456']]), ...L(136, [[62.3, 'Cidade - SP Fone: (11) 3012-5000']]), ...L(137.3, [[240.3, 'Nº.: 000.012.345']]),
+    ...L(214.4, [[500.2, 'DATA DE EMISSÃO']]), ...L(224.5, [[518.2, '21/10/2026']]),
+    ...L(417.2, [[11.3, 'DADOS DOS PRODUTOS / SERVIÇOS']]),
+    ...L(428.3, [[105.9, 'DESCRIÇÃO DO PRODUTO / SERVIÇO'], [260.7, 'NCM/SH']]),
+    ...L(441.4, [[27.7, '10812'], [61.7, '0007_KIT PRECO (5 fls. A4)'], [259.7, '49111090'], [294.4, '041'], [313.4, '6.101'], [334.4, 'KIT'], [364.5, '150,00'], [404.8, '2,01'], [433.2, '301,50'], [473.5, '0,00']]),
+  ];
+  const n = Core.parseDanfe(its);
+  assert.equal(n.nf, '12345');
+  assert.equal(n.fornecedor, 'GRAFICA EXEMPLO LTDA');
+  assert.equal(n.emissao, '2026-10-21');
+  assert.deepEqual(n.itens.map((i) => [i.cProd, i.uCom, i.qCom, i.vUnCom, i.vProd]), [['10812', 'KIT', 150, 2.01, 301.5]]);
+});
+
 test('DANFE: PDF escaneado ou sem chave válida dá mensagem clara', () => {
   assert.throws(() => Core.parseDanfe([]), /imagem escaneada/);
   assert.throws(() => Core.parseDanfe([{ str: '3526 1112 3456 7800 0190 5500 1000 0123 4510 0012 3457', x: 0, y: 0, w: 100 }]), /chave de acesso/);
